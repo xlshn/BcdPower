@@ -56,6 +56,11 @@ class BcdObject
 {
 public:
 	void Release();
+	ImageCode GetImageCode();
+	ObjectCode GetObjectCode();
+	ApplicationCode GetApplicationCode();
+	bool GetBcdObjectId(std::wstring &wstrBcdId);
+	bool GetBcdType(UINT &type);
 	BcdObject(IWbemClassObject* pwco);
 	bool DeleteElement(UINT32 Type);
 	bool EnumerateElements(std::vector<BcdElement> &vecElement);
@@ -128,9 +133,9 @@ public:
 
 	EleValueType GetElementValueType(ULONG Type);
 public:
-	std::wstring StoreFilePath;
-	std::wstring Id;
-	unsigned int Type;
+	std::wstring m_StoreFilePath;
+	std::wstring m_Id;
+	unsigned int m_Type;
 
 	IWbemClassObject* m_wbemBcdObject;
 private:

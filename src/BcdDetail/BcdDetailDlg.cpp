@@ -102,7 +102,9 @@ BOOL CBcdDetailDlg::OnInitDialog()
 	SetIcon(m_hIcon, FALSE);		// Set small icon
 
 	// TODO: Add extra initialization here
-	
+	LONG lTreeLong = ::GetWindowLong(m_bcdStoreTree.m_hWnd, GWL_STYLE);
+	lTreeLong |= (TVS_HASBUTTONS | TVS_LINESATROOT | TVS_HASLINES);
+	::SetWindowLong(m_bcdStoreTree.m_hWnd, GWL_STYLE, lTreeLong);
 	CMenu* pMenu = new CMenu;
 	pMenu->CreateMenu();	
 	CMenu menu;
@@ -135,13 +137,99 @@ void CBcdDetailDlg::OnOpenBcdStore()
 	{
 		::MessageBox(m_hWnd, L"Open bcd fail fail", L"Error", MB_OK);
 		return;
-	}	
-	pBcdStore->ExportStore(L"c:\\1.txt");
+	}		
 	vecBcdStore.push_back(pBcdStore);
 	std::vector<BcdObject*> vecBcdObjects;
 	pBcdStore->EnumerateObjects(0, vecBcdObjects);
-	Sleep(1000);
-	//m_bcdStoreTree.InsertItem();
+	TVINSERTSTRUCT treeItem;
+	memset(&treeItem, 0, sizeof(treeItem));	
+	treeItem.item.mask = TVIF_TEXT | TVIF_PARAM;// | TVIF_CHILDREN;
+	//treeItem.item.cChildren = I_CHILDRENCALLBACK;
+	treeItem.item.pszText = L"BcdStore";
+	treeItem.item.cchTextMax = wcslen(treeItem.item.pszText);
+	treeItem.item.lParam = (LPARAM)pBcdStore;
+	HTREEITEM hRootItem = m_bcdStoreTree.InsertItem(&treeItem);
+
+	TVINSERTSTRUCT treeItemAppObjs;
+	memset(&treeItemAppObjs, 0, sizeof(treeItemAppObjs));
+	treeItemAppObjs.item.mask = TVIF_TEXT | TVIF_PARAM;// | TVIF_CHILDREN;
+	//treeItem.item.cChildren = I_CHILDRENCALLBACK;
+	treeItemAppObjs.item.pszText = L"Application Objects";
+	treeItemAppObjs.item.cchTextMax = wcslen(treeItem.item.pszText);
+	treeItemAppObjs.item.lParam = (LPARAM)nullptr;
+	//treeItemAppObjs.hInsertAfter = hRootItem;
+	treeItemAppObjs.hParent = hRootItem;
+	HTREEITEM hRootAppItem = m_bcdStoreTree.InsertItem(&treeItemAppObjs);
+
+	TVINSERTSTRUCT itemInheritableObj;
+	memset(&itemInheritableObj, 0, sizeof(itemInheritableObj));
+	itemInheritableObj.item.mask = TVIF_TEXT | TVIF_PARAM;// | TVIF_CHILDREN;
+	//treeItem.item.cChildren = I_CHILDRENCALLBACK;
+	itemInheritableObj.item.pszText = L"Inheritable Objects";
+	itemInheritableObj.item.cchTextMax = wcslen(treeItem.item.pszText);
+	itemInheritableObj.item.lParam = (LPARAM)nullptr;
+	itemInheritableObj.hInsertAfter = hRootAppItem;
+	itemInheritableObj.hParent = hRootItem;
+	HTREEITEM hRootInheritableItem = m_bcdStoreTree.InsertItem(&itemInheritableObj);
+
+	TVINSERTSTRUCT itemDeviceObj;
+	memset(&itemDeviceObj, 0, sizeof(itemDeviceObj));
+	itemDeviceObj.item.mask = TVIF_TEXT | TVIF_PARAM;// | TVIF_CHILDREN;
+	//treeItem.item.cChildren = I_CHILDRENCALLBACK;
+	itemDeviceObj.item.pszText = L"Device Objects";
+	itemDeviceObj.item.cchTextMax = wcslen(treeItem.item.pszText);
+	itemDeviceObj.item.lParam = (LPARAM)nullptr;
+	itemDeviceObj.hInsertAfter = hRootInheritableItem;
+	itemDeviceObj.hParent = hRootItem;
+	HTREEITEM hRootDeviceItem = m_bcdStoreTree.InsertItem(&itemDeviceObj);
+
+	for (int i = 0; i < vecBcdObjects.size(); i++)
+	{
+		BcdObject* pBcdObject = vecBcdObjects[i];
+		std::wstring wstrBcdObjectId;
+		if (!pBcdObject->GetBcdObjectId(wstrBcdObjectId))
+		{
+			continue;
+		}
+		TVINSERTSTRUCT treeItemTmp;
+		memset(&treeItemTmp, 0, sizeof(treeItemTmp));
+		treeItemTmp.item.mask = TVIF_TEXT | TVIF_PARAM | TVIF_CHILDREN;
+		treeItemTmp.item.cChildren = I_CHILDRENCALLBACK;
+		if (!wcscmp(wstrBcdObjectId.c_str(), Windows_Boot_Manager_GUID))
+		{
+			treeItemTmp.item.pszText = L"Windows Boot Manager";
+			treeItemTmp.item.cchTextMax = wcslen(treeItem.item.pszText);
+			treeItemTmp.item.lParam = (LPARAM)pBcdObject;
+			treeItemTmp.hParent = hRootItem;
+			treeItemTmp.hInsertAfter = TVI_FIRST;
+			m_bcdStoreTree.InsertItem(&treeItemTmp);
+			continue;
+		}
+		treeItemTmp.item.pszText = (wchar_t*)wstrBcdObjectId.c_str();
+		treeItemTmp.item.cchTextMax = wcslen(treeItem.item.pszText);
+		treeItemTmp.item.lParam = (LPARAM)pBcdObject;
+		//treeItemTmp.hInsertAfter = TVI_FIRST;		
+		ObjectCode objCode = pBcdObject->GetObjectCode();
+		if (objCode != Application && objCode != Inheritable && objCode != Device)
+		{
+			//todo: 还需要研究
+			continue;
+		}
+		if (objCode == Application)
+		{
+			treeItemTmp.hParent = hRootAppItem;
+		}
+		else if (objCode == Inheritable)
+		{
+			treeItemTmp.hParent = hRootInheritableItem;
+		}
+		else if (objCode == Device)
+		{			
+			treeItemTmp.hParent = hRootDeviceItem;
+		}		
+		m_bcdStoreTree.InsertItem(&treeItemTmp);
+	}
+	
 }
 
 void CBcdDetailDlg::OnSysCommand(UINT nID, LPARAM lParam)

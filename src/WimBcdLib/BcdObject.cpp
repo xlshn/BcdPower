@@ -6,9 +6,46 @@ void BcdObject::Release()
 {
 	m_wbemBcdObject->Release();
 }
+ImageCode BcdObject::GetImageCode()
+{
+	return (ImageCode)((m_Type & 0x00f00000) >> 20);
+}
+ObjectCode BcdObject::GetObjectCode()
+{
+	return (ObjectCode)((m_Type & 0xf0000000) >> 28);
+}
+ApplicationCode BcdObject::GetApplicationCode()
+{
+	return (ApplicationCode)(m_Type & 0x000fffff);
+}
+bool BcdObject::GetBcdObjectId(std::wstring &wstrBcdId)
+{
+	VARIANT varBcdObjectId;
+	HRESULT  hres = m_wbemBcdObject->Get(L"ID", 0, &varBcdObjectId, NULL, NULL);
+	if (FAILED(hres))
+	{
+		return false;
+	}
+	wstrBcdId = (wchar_t*)varBcdObjectId.bstrVal;
+	return true;
+	
+}
+bool BcdObject::GetBcdType(UINT &type)
+{
+	VARIANT varBcdObjectType;
+	HRESULT  hres = m_wbemBcdObject->Get(L"Type", 0, &varBcdObjectType, NULL, NULL);
+	if (FAILED(hres))
+	{
+		return false;
+	}
+	type = varBcdObjectType.uintVal;
+	return true;
+
+}
 BcdObject::BcdObject(IWbemClassObject * pwco)
 {
 	m_wbemBcdObject = pwco;
+	GetBcdType(m_Type);
 }
 
 bool BcdObject::DeleteElement(UINT32 Type)

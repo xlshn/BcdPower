@@ -2,22 +2,36 @@
 #include "BcdStore.h"
 #include "BcdCmn.h"
 
-BcdStore::BcdStore(IWbemClassObject * pwboBcdStore)
+void BcdStore::Release()
 {
-	m_wboBcdStore = pwboBcdStore;
+	if (m_wboBcdStoreObject != NULL)
+	{
+		m_wboBcdStoreObject->Release();
+	}
+	if (m_wboBcdStoreClass != NULL)
+	{
+		m_wboBcdStoreClass->Release();
+	}
+
+
+}
+BcdStore::BcdStore(IWbemClassObject * pwboBcdStoreObject, IWbemClassObject *pwboBcdStoreClass)
+{
+	m_wboBcdStoreObject = pwboBcdStoreObject;
+	m_wboBcdStoreClass = pwboBcdStoreClass;
 }
 
 bool BcdStore::CopyObject(std::wstring SourceStoreFile, std::wstring SourceId, uint32 Flags, BcdObject* &Object)
 {
 	VARIANT varPath;
-	HRESULT  hres = BcdCmn::getBcdObjectPath(m_wboBcdStore, varPath);
+	HRESULT  hres = BcdCmn::getBcdObjectPath(m_wboBcdStoreObject, varPath);
 	if (FAILED(hres))
 	{
 		return false;
 	}
 
 	IWbemClassObject* pwboInput = NULL;
-	hres = m_wboBcdStore->GetMethod(L"CopyObject", 0, &pwboInput, NULL);
+	hres = m_wboBcdStoreClass->GetMethod(L"CopyObject", 0, &pwboInput, NULL);
 	if (FAILED(hres))
 	{
 		return false;
@@ -73,14 +87,14 @@ bool BcdStore::CopyObject(std::wstring SourceStoreFile, std::wstring SourceId, u
 bool BcdStore::CopyObjects(std::string SourceStoreFile, uint32 Type, uint32 Flags)
 {
 	VARIANT varPath;
-	HRESULT  hres = BcdCmn::getBcdObjectPath(m_wboBcdStore, varPath);
+	HRESULT  hres = BcdCmn::getBcdObjectPath(m_wboBcdStoreObject, varPath);
 	if (FAILED(hres))
 	{
 		return false;
 	}
 
 	IWbemClassObject* pwboInput = NULL;
-	hres = m_wboBcdStore->GetMethod(L"CopyObjects", 0, &pwboInput, NULL);
+	hres = m_wboBcdStoreClass->GetMethod(L"CopyObjects", 0, &pwboInput, NULL);
 	if (FAILED(hres))
 	{
 		return false;
@@ -118,14 +132,14 @@ bool BcdStore::CreateObject(std::wstring Id, uint32 Type, BcdObject* &Object)
 {
 
 	VARIANT varPath;
-	HRESULT  hres = BcdCmn::getBcdObjectPath(m_wboBcdStore, varPath);
+	HRESULT  hres = BcdCmn::getBcdObjectPath(m_wboBcdStoreObject, varPath);
 	if (FAILED(hres))
 	{
 		return false;
 	}
 
 	IWbemClassObject* pwboInput = NULL;
-	hres = m_wboBcdStore->GetMethod(L"CreateObject", 0, &pwboInput, NULL);
+	hres = m_wboBcdStoreClass->GetMethod(L"CreateObject", 0, &pwboInput, NULL);
 	if (FAILED(hres))
 	{
 		return false;
@@ -175,18 +189,26 @@ bool BcdStore::CreateObject(std::wstring Id, uint32 Type, BcdObject* &Object)
 
 bool BcdStore::CreateStore(std::wstring File, BcdStore* &Store)
 {
-
-	VARIANT varPath;
-	HRESULT  hres = BcdCmn::getBcdObjectPath(m_wboBcdStore, varPath);
+	IWbemClassObject* pBcdStoreClass = NULL;
+	HRESULT  hres = (WBEMSTATUS)getSvc()->GetObject(BSTR(L"BcdStore"), 0, NULL, &pBcdStoreClass, NULL);
 	if (FAILED(hres))
 	{
 		return false;
 	}
 
-	IWbemClassObject* pwboInput = NULL;
-	hres = m_wboBcdStore->GetMethod(L"CreateStore", 0, &pwboInput, NULL);
+	VARIANT varPath;
+	hres = BcdCmn::getBcdObjectPath(pBcdStoreClass, varPath);
 	if (FAILED(hres))
 	{
+		pBcdStoreClass->Release();
+		return false;
+	}
+
+	IWbemClassObject* pwboInput = NULL;
+	hres = pBcdStoreClass->GetMethod(L"CreateStore", 0, &pwboInput, NULL);
+	if (FAILED(hres))
+	{
+		pBcdStoreClass->Release();
 		return false;
 	}
 	VARIANT varFile;
@@ -200,10 +222,11 @@ bool BcdStore::CreateStore(std::wstring File, BcdStore* &Store)
 	pwboInput->Release();
 	if (FAILED(hres))
 	{
+		pBcdStoreClass->Release();
 		return false;
 	}
 
-	bool bRetValue = BcdCmn::getOutputReturnValue(pwboOutput);;
+	bool bRetValue = BcdCmn::getOutputReturnValue(pwboOutput);
 	do
 	{
 		if (!bRetValue)
@@ -216,7 +239,7 @@ bool BcdStore::CreateStore(std::wstring File, BcdStore* &Store)
 		{
 			break;
 		}
-		Store = CreateBcdStoreObj((IWbemClassObject*)varBcdStore.byref);
+		Store = CreateBcdStoreObj((IWbemClassObject*)varBcdStore.byref, pBcdStoreClass);
 
 	} while (0);	
 	pwboOutput->Release();
@@ -224,6 +247,7 @@ bool BcdStore::CreateStore(std::wstring File, BcdStore* &Store)
 	{
 		return true;
 	}
+	pBcdStoreClass->Release();
 	return false;
 
 }
@@ -231,14 +255,14 @@ bool BcdStore::CreateStore(std::wstring File, BcdStore* &Store)
 bool BcdStore::DeleteObject(std::wstring Id)
 {
 	VARIANT varPath;
-	HRESULT  hres = BcdCmn::getBcdObjectPath(m_wboBcdStore, varPath);
+	HRESULT  hres = BcdCmn::getBcdObjectPath(m_wboBcdStoreObject, varPath);
 	if (FAILED(hres))
 	{
 		return false;
 	}
 
 	IWbemClassObject* pwboInput = NULL;
-	hres = m_wboBcdStore->GetMethod(L"DeleteObject", 0, &pwboInput, NULL);
+	hres = m_wboBcdStoreClass->GetMethod(L"DeleteObject", 0, &pwboInput, NULL);
 	if (FAILED(hres))
 	{
 		return false;
@@ -265,7 +289,7 @@ bool BcdStore::DeleteObject(std::wstring Id)
 bool BcdStore::DeleteSystemStore()
 {
 	VARIANT varPath;
-	HRESULT  hres = BcdCmn::getBcdObjectPath(m_wboBcdStore, varPath);
+	HRESULT  hres = BcdCmn::getBcdObjectPath(m_wboBcdStoreObject, varPath);
 	if (FAILED(hres))
 	{
 		return false;
@@ -283,17 +307,17 @@ bool BcdStore::DeleteSystemStore()
 	return bRetValue;
 }
 
-bool BcdStore::EnumerateObjects(uint32 Type, std::vector<BcdObject*> vecBcdObject)
+bool BcdStore::EnumerateObjects(uint32 Type, std::vector<BcdObject*> &vecBcdObject)
 {
 	VARIANT varPath;
-	HRESULT  hres = BcdCmn::getBcdObjectPath(m_wboBcdStore, varPath);
+	HRESULT  hres = BcdCmn::getBcdObjectPath(m_wboBcdStoreObject, varPath);
 	if (FAILED(hres))
 	{
 		return false;
 	}
 
 	IWbemClassObject* pwboInput = NULL;
-	hres = m_wboBcdStore->GetMethod(L"EnumerateObjects", 0, &pwboInput, NULL);
+	hres = m_wboBcdStoreClass->GetMethod(L"EnumerateObjects", 0, &pwboInput, NULL);
 	if (FAILED(hres))
 	{
 		return false;
@@ -355,14 +379,14 @@ bool BcdStore::EnumerateObjects(uint32 Type, std::vector<BcdObject*> vecBcdObjec
 bool BcdStore::ExportStore(std::wstring File)
 {
 	VARIANT varPath;
-	HRESULT  hres = BcdCmn::getBcdObjectPath(m_wboBcdStore, varPath);
+	HRESULT  hres = BcdCmn::getBcdObjectPath(m_wboBcdStoreObject, varPath);
 	if (FAILED(hres))
 	{
 		return false;
 	}
 
 	IWbemClassObject* pwboInput = NULL;
-	hres = m_wboBcdStore->GetMethod(L"ExportStore", 0, &pwboInput, NULL);
+	hres = m_wboBcdStoreClass->GetMethod(L"ExportStore", 0, &pwboInput, NULL);
 	if (FAILED(hres))
 	{
 		return false;
@@ -462,14 +486,14 @@ bool BcdStore::GetSystemPartition(std::wstring &wstrPartition)
 bool BcdStore::ImportStore(std::wstring File)
 {
 	VARIANT varPath;
-	HRESULT  hres = BcdCmn::getBcdObjectPath(m_wboBcdStore, varPath);
+	HRESULT  hres = BcdCmn::getBcdObjectPath(m_wboBcdStoreObject, varPath);
 	if (FAILED(hres))
 	{
 		return false;
 	}
 
 	IWbemClassObject* pwboInput = NULL;
-	hres = m_wboBcdStore->GetMethod(L"ImportStore", 0, &pwboInput, NULL);
+	hres = m_wboBcdStoreClass->GetMethod(L"ImportStore", 0, &pwboInput, NULL);
 	if (FAILED(hres))
 	{
 		return false;
@@ -495,14 +519,14 @@ bool BcdStore::ImportStore(std::wstring File)
 bool BcdStore::ImportStoreWithFlags(std::wstring File, uint32 Flags)
 {
 	VARIANT varPath;
-	HRESULT  hres = BcdCmn::getBcdObjectPath(m_wboBcdStore, varPath);
+	HRESULT  hres = BcdCmn::getBcdObjectPath(m_wboBcdStoreObject, varPath);
 	if (FAILED(hres))
 	{
 		return false;
 	}
 
 	IWbemClassObject* pwboInput = NULL;
-	hres = m_wboBcdStore->GetMethod(L"ImportStoreWithFlags", 0, &pwboInput, NULL);
+	hres = m_wboBcdStoreClass->GetMethod(L"ImportStoreWithFlags", 0, &pwboInput, NULL);
 	if (FAILED(hres))
 	{
 		return false;
@@ -533,14 +557,14 @@ bool BcdStore::ImportStoreWithFlags(std::wstring File, uint32 Flags)
 bool BcdStore::OpenObject(std::wstring Id, BcdObject* &Object)
 {
 	VARIANT varPath;
-	HRESULT  hres = BcdCmn::getBcdObjectPath(m_wboBcdStore, varPath);
+	HRESULT  hres = BcdCmn::getBcdObjectPath(m_wboBcdStoreObject, varPath);
 	if (FAILED(hres))
 	{
 		return false;
 	}
 
 	IWbemClassObject* pwboInput = NULL;
-	hres = m_wboBcdStore->GetMethod(L"OpenObject", 0, &pwboInput, NULL);
+	hres = m_wboBcdStoreClass->GetMethod(L"OpenObject", 0, &pwboInput, NULL);
 	if (FAILED(hres))
 	{
 		return false;
@@ -635,26 +659,27 @@ bool BcdStore::OpenStore(std::wstring File, BcdStore* &Store)
 		{
 			break;
 		}
-		Store = CreateBcdStoreObj((IWbemClassObject*)varBcdObject.byref);
+		Store = CreateBcdStoreObj((IWbemClassObject*)varBcdObject.byref, pBcdStoreClass);
 	} while (0);
 	pwboOutput->Release();
-	pBcdStoreClass->Release();
+	//pBcdStoreClass->Release();
 	if (!FAILED(hres) && bRetVaule)
 	{
 		return true;
 	}
+	pBcdStoreClass->Release();
 	return false;
 }
 
 std::wstring BcdStore::getFilePath()
 {
 	VARIANT varFilePath;
-	m_wboBcdStore->Get(L"FilePath", 0, &varFilePath, NULL, NULL);
+	m_wboBcdStoreObject->Get(L"FilePath", 0, &varFilePath, NULL, NULL);
 
 	return (wchar_t*)varFilePath.bstrVal;
 }
 
-BcdStore * CreateBcdStoreObj(IWbemClassObject * pwboBcdStore)
+BcdStore * CreateBcdStoreObj(IWbemClassObject * pwboBcdStoreObject, IWbemClassObject *pwboBcdStoreClass)
 {
-	return new BcdStore(pwboBcdStore);
+	return new BcdStore(pwboBcdStoreObject, pwboBcdStoreClass);
 }
