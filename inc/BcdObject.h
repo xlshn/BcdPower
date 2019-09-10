@@ -132,17 +132,25 @@ public:
 	);
 
 	EleValueType GetElementValueType(ULONG Type);
+	EleValueType GetElementValueType2(IWbemClassObject* pwboEleObject);
+	bool GetBcdObjectDescription(std::wstring &wstrDescription);
 public:
 	std::wstring m_StoreFilePath;
 	std::wstring m_Id;
 	unsigned int m_Type;
 
 	IWbemClassObject* m_wbemBcdObject;
+	IWbemClassObject* m_wbemBcdClass;
 private:
 	HRESULT getBcdObjectPath(VARIANT &varBcdObjectPath);	
 	bool	getOutputReturnValue(IWbemClassObject* pWbcOutPut);
-	IWbemServices* getSvc();
+	//IWbemServices* getSvc();
 	IWbemClassObject* getElementClassObj(ULONG Type);
+	/////////////////////////////////////////////////////////////////////////
+	//
+	BcdElement BuildBcdElementStruct(IWbemClassObject* pwboEle);
+	BcdStringElement BuildBcdStringElementStruct(IWbemClassObject* pwboEle);
+	/////////////////////////////////////////////////////////////////////////
 };
 
 BcdObject* CreateBcdObjectObj(IWbemClassObject* pwboBcdObject);

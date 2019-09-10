@@ -16,6 +16,7 @@ constexpr auto Standard_Inheritable_dbgsettings_GUID = L"{4636856e-540f-4170-a13
 constexpr auto Standard_Inheritable_emssetting_GUID = L"{0ce4991b-e6b3-4b16-b23c-5e0d9250e5d9}";
 constexpr auto Standard_Inheritable_globalsettings_GUID = L"{7ea2e1ac-2e61-4728-aaa3-896d9d0a9f0e}";
 constexpr auto Standard_Inheritable_resumeloadersettings_GUID = L"{1afa9c49-16ab-4a5c-901b-212802da9460}";
+constexpr auto Standard_Inheritable_hypervisorsettings_GUID = L"{7ff607e0-4395-11db-b0de-0800200c9a66}";
 
 
 

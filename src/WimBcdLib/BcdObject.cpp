@@ -44,6 +44,16 @@ bool BcdObject::GetBcdType(UINT &type)
 }
 BcdObject::BcdObject(IWbemClassObject * pwco)
 {
+	///////////////////////////////////////////////////////////////////////
+	//
+	IWbemClassObject* wbemBcdClass = NULL;
+	HRESULT  hres = (WBEMSTATUS)getSvc()->GetObject(BSTR(L"BcdObject"), 0, NULL, &wbemBcdClass, NULL);
+	if (FAILED(hres))
+	{
+		//
+	}
+	m_wbemBcdClass = wbemBcdClass;
+	///////////////////////////////////////////////////////////////////////
 	m_wbemBcdObject = pwco;
 	GetBcdType(m_Type);
 }
@@ -814,22 +824,12 @@ bool BcdObject::SetVhdDeviceElement(ULONG Type,
 
 EleValueType BcdObject::GetElementValueType(ULONG Type)
 {
-	IWbemClassObject* pwboGetElementWithFlagsOutput = getElementClassObj(Type);
-	if (pwboGetElementWithFlagsOutput == NULL)
-	{
-		return EleValueType_error;
-	}
-
-	VARIANT varElement;
-	HRESULT hres;
- 	hres =	pwboGetElementWithFlagsOutput->Get(L"Element", 0, &varElement, NULL, NULL);
-	if (FAILED(hres))
-	{
-		pwboGetElementWithFlagsOutput->Release();
-		return EleValueType_error;
-	}
 	EleValueType valueType = EleValueType_error;
-	IWbemClassObject* pWboEle = (IWbemClassObject*)varElement.byref;
+	IWbemClassObject* pWboEle = getElementClassObj(Type);
+	if (pWboEle == NULL)
+	{
+		return valueType;
+	}		
 	VARIANT varClass;
 	pWboEle->Get(L"__Class", 0, &varClass, NULL, NULL);
 	if (wcscmp(varClass.bstrVal, L"BcdBooleanElement"))
@@ -867,10 +867,74 @@ EleValueType BcdObject::GetElementValueType(ULONG Type)
 	else if (wcscmp(varClass.bstrVal, L"BcdUnknownElement"))
 	{
 		valueType = EleValueType_BcdUnknown;
-	}
-	pwboGetElementWithFlagsOutput->Release();
+	}	
 	return valueType;
 }
+EleValueType BcdObject::GetElementValueType2(IWbemClassObject* pwboEleObject)
+{
+	EleValueType valueType = EleValueType_error;
+	if (pwboEleObject == NULL)
+	{
+		return valueType;
+	}
+	VARIANT varClass;
+	pwboEleObject->Get(L"__Class", 0, &varClass, NULL, NULL);
+	if (wcscmp(varClass.bstrVal, L"BcdBooleanElement"))
+	{
+		valueType = EleValueType_Boolean;
+	}
+	else if (wcscmp(varClass.bstrVal, L"BcdDeviceElement"))
+	{
+		valueType = EleValueType_Device;
+	}
+	else if (wcscmp(varClass.bstrVal, L"BcdElement"))
+	{
+		valueType = EleValueType_Base;
+	}
+	else if (wcscmp(varClass.bstrVal, L"BcdIntegerElement"))
+	{
+		valueType = EleValueType_Integer;
+	}
+	else if (wcscmp(varClass.bstrVal, L"BcdIntegerListElement"))
+	{
+		valueType = EleValueType_IntegersArray;
+	}
+	else if (wcscmp(varClass.bstrVal, L"BcdObjectElement"))
+	{
+		valueType = EleValueType_BcdObjectId;
+	}
+	else if (wcscmp(varClass.bstrVal, L"BcdObjectListElement"))
+	{
+		valueType = EleValueType_BcdObjectIdArray;
+	}
+	else if (wcscmp(varClass.bstrVal, L"BcdStringElement"))
+	{
+		valueType = EleValueType_BcdString;
+	}
+	else if (wcscmp(varClass.bstrVal, L"BcdUnknownElement"))
+	{
+		valueType = EleValueType_BcdUnknown;
+	}
+	return valueType;
+}
+bool BcdObject::GetBcdObjectDescription(std::wstring &wstrDescription)
+{
+	IWbemClassObject* pWboEle = getElementClassObj(0x12000004);
+	if (pWboEle == NULL)
+	{
+		return false;
+	}
+	EleValueType eleValueType = GetElementValueType2(pWboEle);
+	if (eleValueType != EleValueType_BcdString)
+	{
+		pWboEle->Release();
+		return false;
+	}
+	BcdStringElement stringEle = BuildBcdStringElementStruct(pWboEle);
+	wstrDescription = stringEle.String;
+	return true;
+}
+	
 
 bool BcdObject::GetElement(UINT32 Type, BcdElement &Element)
 {	
@@ -900,11 +964,6 @@ bool BcdObject::getOutputReturnValue(IWbemClassObject * pWbcOutPut)
 	return varOutput.boolVal;	
 }
 
-IWbemServices* BcdObject::getSvc()
-{
-	return wimBase.getSvc();	
-}
-
 IWbemClassObject * BcdObject::getElementClassObj(ULONG Type)
 {
 	VARIANT varBcdObjectPath;
@@ -914,7 +973,7 @@ IWbemClassObject * BcdObject::getElementClassObj(ULONG Type)
 		return false;
 	}
 	IWbemClassObject* pWboInParam = NULL;
-	hres = m_wbemBcdObject->GetMethod(L"GetElementWithFlags", 0, &pWboInParam, NULL);
+	hres = m_wbemBcdClass->GetMethod(L"GetElement", 0, &pWboInParam, NULL);
 	if (FAILED(hres))
 	{
 		return  false;
@@ -925,20 +984,21 @@ IWbemClassObject * BcdObject::getElementClassObj(ULONG Type)
 	varType.uintVal = Type;
 	pWboInParam->Put(L"Type", 0, &varType, NULL);
 
+/*
 	VARIANT varFlags;
 	varFlags.vt = VT_I4;
-	varFlags.uintVal = -1;
+	varFlags.uintVal = 0;
 	pWboInParam->Put(L"Flags", 0, &varFlags, NULL);
-
+*/
 	IWbemServices* psvc = getSvc();
 	IWbemClassObject* pwcoOutput = NULL;
-	hres = psvc->ExecMethod(varBcdObjectPath.bstrVal, (BSTR)L"GetElementWithFlags", 0, NULL, pWboInParam, &pwcoOutput, NULL);
+	hres = psvc->ExecMethod(varBcdObjectPath.bstrVal, (BSTR)L"GetElement", 0, NULL, pWboInParam, &pwcoOutput, NULL);
 	pWboInParam->Release();
 	if (FAILED(hres))
-	{
-		pWboInParam->Release();
+	{		
 		return NULL;
 	}
+	IWbemClassObject* pWboEle = NULL;
 	do
 	{
 		bool bReturnValue = getOutputReturnValue(pwcoOutput);
@@ -946,13 +1006,57 @@ IWbemClassObject * BcdObject::getElementClassObj(ULONG Type)
 		{
 			break;
 		}
-		return pwcoOutput;		
+		VARIANT varElement;
+		HRESULT hres;
+		hres = pwcoOutput->Get(L"Element", 0, &varElement, NULL, NULL);		
+		if (FAILED(hres))
+		{
+			break;
+		}
+		pWboEle = (IWbemClassObject*)varElement.byref;	
 	} while (0);
 	pwcoOutput->Release();
-	return NULL;
+	return pWboEle;
 }
 
 BcdObject* CreateBcdObjectObj(IWbemClassObject* pwboBcdObject)
 {
 	return new BcdObject(pwboBcdObject);
 }
+
+BcdElement BcdObject::BuildBcdElementStruct(IWbemClassObject* pwboEle)
+{
+	VARIANT varTmp;
+	memset(&varTmp, 0, sizeof(VARIANT));
+	BcdStringElement ele;
+
+	HRESULT hres = pwboEle->Get(L"StoreFilePath", 0, &varTmp, NULL, NULL);
+	ele.StoreFilePath = varTmp.bstrVal;
+
+	memset(&varTmp, 0, sizeof(VARIANT));
+	hres = pwboEle->Get(L"ObjectId", 0, &varTmp, NULL, NULL);
+	ele.ObjectId = varTmp.bstrVal;
+
+	memset(&varTmp, 0, sizeof(VARIANT));
+	hres = pwboEle->Get(L"Type", 0, &varTmp, NULL, NULL);
+	ele.Type = varTmp.uintVal;
+
+	return ele;
+}
+
+BcdStringElement BcdObject::BuildBcdStringElementStruct(IWbemClassObject* pwboEle)
+{
+	VARIANT varTmp;
+	memset(&varTmp, 0, sizeof(VARIANT));
+	BcdStringElement stringEle;
+	HRESULT hres = pwboEle->Get(L"String", 0, &varTmp, NULL, NULL);
+
+	stringEle.String = varTmp.bstrVal;
+
+	BcdElement ele = BuildBcdElementStruct(pwboEle);
+	stringEle.ObjectId = ele.ObjectId;
+	stringEle.StoreFilePath = ele.StoreFilePath;
+	stringEle.Type = ele.Type;
+	return stringEle;
+}
+

@@ -91,5 +91,8 @@ public:
 	std::wstring *Ids;
 };
 
-
-
+class BcdStringElement : public BcdElement
+{
+public:
+	std::wstring String;
+};

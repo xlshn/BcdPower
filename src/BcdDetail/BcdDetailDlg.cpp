@@ -205,7 +205,43 @@ void CBcdDetailDlg::OnOpenBcdStore()
 			m_bcdStoreTree.InsertItem(&treeItemTmp);
 			continue;
 		}
-		treeItemTmp.item.pszText = (wchar_t*)wstrBcdObjectId.c_str();
+		
+		wchar_t* pwszBcdObjectDescription = (wchar_t*)wstrBcdObjectId.c_str();
+		if (!_wcsicmp(pwszBcdObjectDescription, Standard_Inheritable_badmemory_GUID))
+		{
+			pwszBcdObjectDescription = L"badmemory";
+		}
+		else if (!_wcsicmp(pwszBcdObjectDescription, Standard_Inheritable_bootloadersettings_GUID))
+		{
+			pwszBcdObjectDescription = L"bootloadersettings";
+		}
+		else if (!_wcsicmp(pwszBcdObjectDescription, Standard_Inheritable_dbgsettings_GUID))
+		{
+			pwszBcdObjectDescription = L"dbgsettings";
+		}
+		else if (!_wcsicmp(pwszBcdObjectDescription, Standard_Inheritable_emssetting_GUID))
+		{
+			pwszBcdObjectDescription = L"emssetting";
+		}
+		else if (!_wcsicmp(pwszBcdObjectDescription, Standard_Inheritable_globalsettings_GUID))
+		{
+			pwszBcdObjectDescription = L"globalsettings";
+		}
+		else if (!_wcsicmp(pwszBcdObjectDescription, Standard_Inheritable_resumeloadersettings_GUID))
+		{
+			pwszBcdObjectDescription = L"resumeloadersettings";
+		}
+		else if (!_wcsicmp(pwszBcdObjectDescription, Standard_Inheritable_hypervisorsettings_GUID))
+		{
+			pwszBcdObjectDescription = L"hypervisorsettings";
+		}
+		treeItemTmp.item.pszText = pwszBcdObjectDescription;
+		std::wstring wstrDescription;
+		if (pBcdObject->GetBcdObjectDescription(wstrDescription))
+		{
+			treeItemTmp.item.pszText = (wchar_t*)wstrDescription.c_str();
+		}
+		
 		treeItemTmp.item.cchTextMax = wcslen(treeItem.item.pszText);
 		treeItemTmp.item.lParam = (LPARAM)pBcdObject;
 		//treeItemTmp.hInsertAfter = TVI_FIRST;		
