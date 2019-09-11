@@ -879,39 +879,39 @@ EleValueType BcdObject::GetElementValueType2(IWbemClassObject* pwboEleObject)
 	}
 	VARIANT varClass;
 	pwboEleObject->Get(L"__Class", 0, &varClass, NULL, NULL);
-	if (wcscmp(varClass.bstrVal, L"BcdBooleanElement"))
+	if (!wcscmp(varClass.bstrVal, L"BcdBooleanElement"))
 	{
 		valueType = EleValueType_Boolean;
 	}
-	else if (wcscmp(varClass.bstrVal, L"BcdDeviceElement"))
+	else if (!wcscmp(varClass.bstrVal, L"BcdDeviceElement"))
 	{
 		valueType = EleValueType_Device;
 	}
-	else if (wcscmp(varClass.bstrVal, L"BcdElement"))
+	else if (!wcscmp(varClass.bstrVal, L"BcdElement"))
 	{
 		valueType = EleValueType_Base;
 	}
-	else if (wcscmp(varClass.bstrVal, L"BcdIntegerElement"))
+	else if (!wcscmp(varClass.bstrVal, L"BcdIntegerElement"))
 	{
 		valueType = EleValueType_Integer;
 	}
-	else if (wcscmp(varClass.bstrVal, L"BcdIntegerListElement"))
+	else if (!wcscmp(varClass.bstrVal, L"BcdIntegerListElement"))
 	{
 		valueType = EleValueType_IntegersArray;
 	}
-	else if (wcscmp(varClass.bstrVal, L"BcdObjectElement"))
+	else if (!wcscmp(varClass.bstrVal, L"BcdObjectElement"))
 	{
 		valueType = EleValueType_BcdObjectId;
 	}
-	else if (wcscmp(varClass.bstrVal, L"BcdObjectListElement"))
+	else if (!wcscmp(varClass.bstrVal, L"BcdObjectListElement"))
 	{
 		valueType = EleValueType_BcdObjectIdArray;
 	}
-	else if (wcscmp(varClass.bstrVal, L"BcdStringElement"))
+	else if (!wcscmp(varClass.bstrVal, L"BcdStringElement"))
 	{
 		valueType = EleValueType_BcdString;
 	}
-	else if (wcscmp(varClass.bstrVal, L"BcdUnknownElement"))
+	else if (!wcscmp(varClass.bstrVal, L"BcdUnknownElement"))
 	{
 		valueType = EleValueType_BcdUnknown;
 	}

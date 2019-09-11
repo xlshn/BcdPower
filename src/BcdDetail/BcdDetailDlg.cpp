@@ -194,10 +194,20 @@ void CBcdDetailDlg::OnOpenBcdStore()
 		TVINSERTSTRUCT treeItemTmp;
 		memset(&treeItemTmp, 0, sizeof(treeItemTmp));
 		treeItemTmp.item.mask = TVIF_TEXT | TVIF_PARAM | TVIF_CHILDREN;
-		treeItemTmp.item.cChildren = I_CHILDRENCALLBACK;
+		//treeItemTmp.item.cChildren = I_CHILDRENCALLBACK;
 		if (!wcscmp(wstrBcdObjectId.c_str(), Windows_Boot_Manager_GUID))
 		{
 			treeItemTmp.item.pszText = L"Windows Boot Manager";
+			treeItemTmp.item.cchTextMax = wcslen(treeItem.item.pszText);
+			treeItemTmp.item.lParam = (LPARAM)pBcdObject;
+			treeItemTmp.hParent = hRootItem;
+			treeItemTmp.hInsertAfter = TVI_FIRST;
+			m_bcdStoreTree.InsertItem(&treeItemTmp);
+			continue;
+		}
+		else if (!wcscmp(wstrBcdObjectId.c_str(), Firmware_Boot_Manager_GUID))
+		{
+			treeItemTmp.item.pszText = L"Firmware Boot Manager";
 			treeItemTmp.item.cchTextMax = wcslen(treeItem.item.pszText);
 			treeItemTmp.item.lParam = (LPARAM)pBcdObject;
 			treeItemTmp.hParent = hRootItem;
