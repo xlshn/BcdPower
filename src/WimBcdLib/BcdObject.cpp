@@ -56,6 +56,7 @@ BcdObject::BcdObject(IWbemClassObject * pwco)
 	///////////////////////////////////////////////////////////////////////
 	m_wbemBcdObject = pwco;
 	GetBcdType(m_Type);
+	GetBcdObjectId(m_Id);
 }
 
 bool BcdObject::DeleteElement(UINT32 Type)
@@ -919,19 +920,96 @@ EleValueType BcdObject::GetElementValueType2(IWbemClassObject* pwboEleObject)
 }
 bool BcdObject::GetBcdObjectDescription(std::wstring &wstrDescription)
 {
+	///////////////////////////////////////////////////////////////////////////////////////////////////////
+	//
+	std::wstring wstrBcdObjectDescription;
+	if (!wcscmp(m_Id.c_str(), Windows_Boot_Manager_GUID))
+	{
+		wstrBcdObjectDescription = L"Windows Boot Manager";
+	}
+	else if (!wcscmp(m_Id.c_str(), Firmware_Boot_Manager_GUID))
+	{
+		wstrBcdObjectDescription = L"Firmware Boot Manager";
+	}
+	else if (!_wcsicmp(m_Id.c_str(), Standard_Inheritable_badmemory_GUID))
+	{
+		wstrBcdObjectDescription = L"{badmemory}";
+	}
+	else if (!_wcsicmp(m_Id.c_str(), Standard_Inheritable_bootloadersettings_GUID))
+	{
+		wstrBcdObjectDescription = L"{bootloadersettings}";
+	}
+	else if (!_wcsicmp(m_Id.c_str(), Standard_Inheritable_dbgsettings_GUID))
+	{
+		wstrBcdObjectDescription = L"{dbgsettings}";
+	}
+	else if (!_wcsicmp(m_Id.c_str(), Standard_Inheritable_emssetting_GUID))
+	{
+		wstrBcdObjectDescription = L"{emssetting}";
+	}
+	else if (!_wcsicmp(m_Id.c_str(), Standard_Inheritable_globalsettings_GUID))
+	{
+		wstrBcdObjectDescription = L"{globalsettings}";
+	}
+	else if (!_wcsicmp(m_Id.c_str(), Standard_Inheritable_resumeloadersettings_GUID))
+	{
+		wstrBcdObjectDescription = L"{resumeloadersettings}";
+	}
+	else if (!_wcsicmp(m_Id.c_str(), Standard_Inheritable_hypervisorsettings_GUID))
+	{
+		wstrBcdObjectDescription = L"{hypervisorsettings}";
+	}
+	else if (!_wcsicmp(m_Id.c_str(), Standard_Ramdisk_Options_GUID))
+	{
+		wstrBcdObjectDescription = L"{ramdiskoptions}";
+	}
+	if (wstrBcdObjectDescription.length())
+	{
+		wstrDescription = wstrBcdObjectDescription;
+		return true;
+	}
+	///////////////////////////////////////////////////////////////////////////////////////////////////////
 	IWbemClassObject* pWboEle = getElementClassObj(0x12000004);
-	if (pWboEle == NULL)
+	if (pWboEle != NULL)
 	{
-		return false;
+		EleValueType eleValueType = GetElementValueType2(pWboEle);
+		if (eleValueType != EleValueType_BcdString)
+		{
+			pWboEle->Release();
+			return false;
+		}
+		BcdStringElement stringEle = BuildBcdStringElementStruct(pWboEle);
+		wstrDescription = stringEle.String;
+		return true;	
 	}
-	EleValueType eleValueType = GetElementValueType2(pWboEle);
-	if (eleValueType != EleValueType_BcdString)
+
+	///////////////////////////////////////////////////////////
+	ObjectCode oc = GetObjectCode();
+	switch (oc)
 	{
-		pWboEle->Release();
-		return false;
+		case Application:
+		{
+			wstrDescription = L"Application Object";
+			break;
+		}
+
+		case Inheritable:
+		{
+			wstrDescription = L"Inheritable Object";
+			break;
+		}
+		case Device:
+		{
+			wstrDescription = L"Device Object";
+			break;
+		}
+		default:
+		{
+			return false;			
+		}
+		
 	}
-	BcdStringElement stringEle = BuildBcdStringElementStruct(pWboEle);
-	wstrDescription = stringEle.String;
+	////////////////////////////////////////////////////////////
 	return true;
 }
 	
@@ -940,7 +1018,6 @@ bool BcdObject::GetElement(UINT32 Type, BcdElement &Element)
 {	
 	return GetElementWithFlags(Type, 0, Element);
 }
-
 HRESULT BcdObject::getBcdObjectPath(VARIANT &varBcdObjectPath)
 {
 	VARIANT varBcdObjectPathTmp;
@@ -973,7 +1050,7 @@ IWbemClassObject * BcdObject::getElementClassObj(ULONG Type)
 		return false;
 	}
 	IWbemClassObject* pWboInParam = NULL;
-	hres = m_wbemBcdClass->GetMethod(L"GetElement", 0, &pWboInParam, NULL);
+	hres = m_wbemBcdClass->GetMethod(L"GetElementWithFlags", 0, &pWboInParam, NULL);
 	if (FAILED(hres))
 	{
 		return  false;
@@ -984,15 +1061,15 @@ IWbemClassObject * BcdObject::getElementClassObj(ULONG Type)
 	varType.uintVal = Type;
 	pWboInParam->Put(L"Type", 0, &varType, NULL);
 
-/*
+
 	VARIANT varFlags;
 	varFlags.vt = VT_I4;
-	varFlags.uintVal = 0;
+	varFlags.uintVal = 1;
 	pWboInParam->Put(L"Flags", 0, &varFlags, NULL);
-*/
+
 	IWbemServices* psvc = getSvc();
 	IWbemClassObject* pwcoOutput = NULL;
-	hres = psvc->ExecMethod(varBcdObjectPath.bstrVal, (BSTR)L"GetElement", 0, NULL, pWboInParam, &pwcoOutput, NULL);
+	hres = psvc->ExecMethod(varBcdObjectPath.bstrVal, (BSTR)L"GetElementWithFlags", 0, NULL, pWboInParam, &pwcoOutput, NULL);
 	pWboInParam->Release();
 	if (FAILED(hres))
 	{		

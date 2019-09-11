@@ -191,13 +191,20 @@ void CBcdDetailDlg::OnOpenBcdStore()
 		{
 			continue;
 		}
+		//WM_SETFONT
+		std::wstring wstrDescription;
+		if (!pBcdObject->GetBcdObjectDescription(wstrDescription))
+		{
+			continue;
+		}
+
 		TVINSERTSTRUCT treeItemTmp;
 		memset(&treeItemTmp, 0, sizeof(treeItemTmp));
 		treeItemTmp.item.mask = TVIF_TEXT | TVIF_PARAM | TVIF_CHILDREN;
 		//treeItemTmp.item.cChildren = I_CHILDRENCALLBACK;
 		if (!wcscmp(wstrBcdObjectId.c_str(), Windows_Boot_Manager_GUID))
 		{
-			treeItemTmp.item.pszText = L"Windows Boot Manager";
+			treeItemTmp.item.pszText = (wchar_t*)wstrDescription.c_str();
 			treeItemTmp.item.cchTextMax = wcslen(treeItem.item.pszText);
 			treeItemTmp.item.lParam = (LPARAM)pBcdObject;
 			treeItemTmp.hParent = hRootItem;
@@ -207,7 +214,7 @@ void CBcdDetailDlg::OnOpenBcdStore()
 		}
 		else if (!wcscmp(wstrBcdObjectId.c_str(), Firmware_Boot_Manager_GUID))
 		{
-			treeItemTmp.item.pszText = L"Firmware Boot Manager";
+			treeItemTmp.item.pszText = (wchar_t*)wstrDescription.c_str();
 			treeItemTmp.item.cchTextMax = wcslen(treeItem.item.pszText);
 			treeItemTmp.item.lParam = (LPARAM)pBcdObject;
 			treeItemTmp.hParent = hRootItem;
@@ -215,43 +222,7 @@ void CBcdDetailDlg::OnOpenBcdStore()
 			m_bcdStoreTree.InsertItem(&treeItemTmp);
 			continue;
 		}
-		
-		wchar_t* pwszBcdObjectDescription = (wchar_t*)wstrBcdObjectId.c_str();
-		if (!_wcsicmp(pwszBcdObjectDescription, Standard_Inheritable_badmemory_GUID))
-		{
-			pwszBcdObjectDescription = L"badmemory";
-		}
-		else if (!_wcsicmp(pwszBcdObjectDescription, Standard_Inheritable_bootloadersettings_GUID))
-		{
-			pwszBcdObjectDescription = L"bootloadersettings";
-		}
-		else if (!_wcsicmp(pwszBcdObjectDescription, Standard_Inheritable_dbgsettings_GUID))
-		{
-			pwszBcdObjectDescription = L"dbgsettings";
-		}
-		else if (!_wcsicmp(pwszBcdObjectDescription, Standard_Inheritable_emssetting_GUID))
-		{
-			pwszBcdObjectDescription = L"emssetting";
-		}
-		else if (!_wcsicmp(pwszBcdObjectDescription, Standard_Inheritable_globalsettings_GUID))
-		{
-			pwszBcdObjectDescription = L"globalsettings";
-		}
-		else if (!_wcsicmp(pwszBcdObjectDescription, Standard_Inheritable_resumeloadersettings_GUID))
-		{
-			pwszBcdObjectDescription = L"resumeloadersettings";
-		}
-		else if (!_wcsicmp(pwszBcdObjectDescription, Standard_Inheritable_hypervisorsettings_GUID))
-		{
-			pwszBcdObjectDescription = L"hypervisorsettings";
-		}
-		treeItemTmp.item.pszText = pwszBcdObjectDescription;
-		std::wstring wstrDescription;
-		if (pBcdObject->GetBcdObjectDescription(wstrDescription))
-		{
-			treeItemTmp.item.pszText = (wchar_t*)wstrDescription.c_str();
-		}
-		
+		treeItemTmp.item.pszText = (wchar_t*)wstrDescription.c_str();		
 		treeItemTmp.item.cchTextMax = wcslen(treeItem.item.pszText);
 		treeItemTmp.item.lParam = (LPARAM)pBcdObject;
 		//treeItemTmp.hInsertAfter = TVI_FIRST;		
