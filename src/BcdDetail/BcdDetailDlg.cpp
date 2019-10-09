@@ -61,13 +61,15 @@ void CBcdDetailDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_TREE_BCD_SOTRE, m_bcdStoreTree);
+	DDX_Control(pDX, IDC_LIST_BCD_OBJECT_DETAIL, m_listBcdObjectDetail);
 }
 
 BEGIN_MESSAGE_MAP(CBcdDetailDlg, CDialogEx)
 	ON_WM_SYSCOMMAND()
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
-	ON_COMMAND(MENU_BCDSTORE_ITEM_OPENBCDSTROE, OnOpenBcdStore)
+	ON_COMMAND(MENU_BCDSTORE_ITEM_OPENBCDSTROE, OnOpenBcdStore)	
+	ON_NOTIFY(TVN_SELCHANGED, IDC_TREE_BCD_SOTRE, &CBcdDetailDlg::OnTvnSelchangedTreeBcdSotre)
 END_MESSAGE_MAP()
 
 
@@ -112,6 +114,33 @@ BOOL CBcdDetailDlg::OnInitDialog()
 	menu.AppendMenu(MF_STRING, MENU_BCDSTORE_ITEM_OPENBCDSTROE, L"OpenBcdStore");//新建子菜单的菜单项1
 	pMenu->AppendMenu(MF_POPUP, (UINT)menu.m_hMenu, L"BcdStore");//增加子菜单 
 	SetMenu(pMenu);
+
+	m_listBcdObjectDetail.ModifyStyle(0, LVS_REPORT);
+	m_listBcdObjectDetail.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES);
+//	m_listBcdObjectDetail.SetColumn()
+	LVCOLUMN columnEleType;
+	columnEleType.mask = LVCF_TEXT | LVCF_FMT | LVCF_WIDTH;
+	columnEleType.pszText = L"Element Type";
+	columnEleType.fmt = LVCFMT_LEFT;
+	columnEleType.cx = 100;
+	m_listBcdObjectDetail.InsertColumn(0, &columnEleType);	
+
+	LVCOLUMN columnEleFriendName;
+	columnEleFriendName.mask = LVCF_TEXT | LVCF_FMT | LVCF_WIDTH;
+	columnEleFriendName.pszText = L"Element Name";
+	columnEleFriendName.fmt = LVCFMT_LEFT;	
+	columnEleFriendName.cx = 100;
+	m_listBcdObjectDetail.InsertColumn(1, &columnEleFriendName);
+
+	LVCOLUMN columnEleValue;
+	columnEleValue.mask = LVCF_TEXT | LVCF_FMT | LVCF_WIDTH;
+	columnEleValue.pszText = L"Element Value";
+	columnEleValue.fmt = LVCFMT_LEFT;
+	columnEleValue.cx = 250;
+	m_listBcdObjectDetail.InsertColumn(2, &columnEleValue);
+	CHeaderCtrl* listHeader = m_listBcdObjectDetail.GetHeaderCtrl();	
+	//hStyle = (~HDS_BUTTONS) | hStyle;
+	listHeader->ModifyStyle(HDS_BUTTONS, 0);
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
 
@@ -246,9 +275,29 @@ void CBcdDetailDlg::OnOpenBcdStore()
 		}		
 		m_bcdStoreTree.InsertItem(&treeItemTmp);
 	}
-	
+	ExpandAllTree(hRootItem);
 }
 
+void CBcdDetailDlg::ExpandAllTree(HTREEITEM hTreeItem)
+{
+	if (!m_bcdStoreTree.ItemHasChildren(hTreeItem))
+	{
+		return;
+	}
+	HTREEITEM hNextItem = m_bcdStoreTree.GetChildItem(hTreeItem);
+	while (hNextItem != NULL)
+	{
+		ExpandAllTree(hNextItem);
+		hNextItem = m_bcdStoreTree.GetNextItem(hNextItem, TVGN_NEXT);
+	}
+	m_bcdStoreTree.Expand(hTreeItem, TVE_EXPAND);
+
+}
+BOOL CBcdDetailDlg::OnCommand(WPARAM wParam, LPARAM lParam)
+{
+
+	return CDialogEx::OnCommand(wParam, lParam);
+}
 void CBcdDetailDlg::OnSysCommand(UINT nID, LPARAM lParam)
 {
 	if ((nID & 0xFFF0) == IDM_ABOUTBOX)
@@ -298,3 +347,20 @@ HCURSOR CBcdDetailDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
+void CBcdDetailDlg::OnTvnSelchangedTreeBcdSotre(NMHDR *pNMHDR, LRESULT *pResult)
+{
+	LPNMTREEVIEW pNMTreeView = reinterpret_cast<LPNMTREEVIEW>(pNMHDR);
+	*pResult = 0;
+	if ((pNMTreeView->itemNew.mask & TVIF_PARAM) == 0)
+	{
+		return;
+	}
+	BcdObject* pBcdObj = (BcdObject*)pNMTreeView->itemNew.lParam;
+	if (pBcdObj == NULL)
+	{
+		return; 
+	}
+	std::vector<BcdElement*> vecElement;
+	pBcdObj->EnumerateElements(vecElement);
+	*pResult = 0;
+}

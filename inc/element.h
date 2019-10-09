@@ -48,9 +48,21 @@ enum EleValueType
 class BcdElement
 {
 public:
+	BcdElement()
+	{
+		valueType = EleValueType_BcdUnknown;
+		UserData = NULL;
+	}
 	std::wstring StoreFilePath;
 	std::wstring ObjectId;
 	unsigned int Type;
+	EleValueType valueType;
+	void* UserData;
+	virtual ~BcdElement()
+	{
+		StoreFilePath.~basic_string();
+		ObjectId.~basic_string();
+	}
 };
 
 class BcdDeviceElement : public BcdElement
@@ -59,40 +71,65 @@ public:
 	BcdDeviceData Device;
 };
 
-class BcdBooleanElement : BcdElement
+class BcdBooleanElement : public BcdElement
 {
 public:
-	boolean Boolean;
+	bool Boolean;
 };
 
-class BcdIntegerElement : BcdElement
+class BcdIntegerElement : public BcdElement
 {
 public:
-	__int64 Integer;
+	ULONGLONG Integer;
 };
 
-class BcdIntegerListElement : BcdElement
+class BcdIntegerListElement : public BcdElement
 {
 public:
 	//std::wstring Integers[];
-	std::wstring *Integers;
+	//std::wstring *Integers;
+	std::vector<std::wstring> vecInteger;	
+	virtual ~BcdIntegerListElement()
+	{
+		vecInteger.clear();
+		vecInteger.~vector();
+	}
 };
 
-class BcdObjectElement : BcdElement
+class BcdObjectElement : public BcdElement
 {
 public:
 	std::wstring Id;
+	virtual ~BcdObjectElement()
+	{
+		Id.~basic_string();
+	}
 };
 
-class BcdObjectListElement : BcdElement
+class BcdObjectListElement : public BcdElement
 {
 public:
 	//std::wstring Ids[];
-	std::wstring *Ids;
+	//std::wstring *Ids;
+	std::vector<std::wstring> vecId;
+	virtual ~BcdObjectListElement()
+	{
+		vecId.~vector();
+	}
 };
 
 class BcdStringElement : public BcdElement
 {
 public:
 	std::wstring String;
+	virtual ~BcdStringElement()
+	{
+		String.~basic_string();
+	}
+};
+
+class BcdUnknownElement : public BcdElement
+{
+public:
+	ULONGLONG ActualType;
 };

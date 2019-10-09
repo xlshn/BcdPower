@@ -1,6 +1,6 @@
 #include "BcdObject.h"
 #include <cassert>
-CWimBase wimBase;
+
 
 void BcdObject::Release()
 {
@@ -83,7 +83,7 @@ bool BcdObject::DeleteElement(UINT32 Type)
 		VARIANT varBcdObjectPath;			
 		hWmiRes = m_wbemBcdObject->Get(L"__RELPATH", 0, &varBcdObjectPath, NULL, NULL);
 
-		IWbemServices* pWbemServ = wimBase.getSvc();
+		IWbemServices* pWbemServ = getSvc();
 		IWbemClassObject* pOutputParam = NULL;
 		hWmiRes = pWbemServ->ExecMethod(varBcdObjectPath.bstrVal, BSTR(L"DeleteElement"), 0, NULL, pWcoDeleteElementInput, &pOutputParam, NULL);
 		if (FAILED(hWmiRes))
@@ -116,7 +116,7 @@ bool BcdObject::DeleteElement(UINT32 Type)
 	}
 }
 
-bool BcdObject::EnumerateElements(std::vector<BcdElement>& vecElement)
+bool BcdObject::EnumerateElements(std::vector<BcdElement*>& vecElement)
 {
 	bool bReturnValue = false; //默认为false
 	VARIANT varBcdObjectPath;
@@ -125,7 +125,7 @@ bool BcdObject::EnumerateElements(std::vector<BcdElement>& vecElement)
 	{
 		return false;
 	}
-	IWbemServices* pWbemServ = wimBase.getSvc();
+	IWbemServices* pWbemServ = getSvc();
 	IWbemClassObject* pWbcEnumEleOutPut = NULL;
 	hres = pWbemServ->ExecMethod(varBcdObjectPath.bstrVal, BSTR(L"EnumerateElements"), 0, NULL, NULL, &pWbcEnumEleOutPut, NULL);
 	if (FAILED(hres))
@@ -159,8 +159,9 @@ bool BcdObject::EnumerateElements(std::vector<BcdElement>& vecElement)
 			IWbemClassObject* pWcoEle = NULL;
 			LONG iTmp = (LONG)i;
 			SafeArrayGetElement(varElements.parray, &iTmp, &pWcoEle);
+			/*
+			EleValueType valueType = GetElementValueType2(pWcoEle);
 			BcdElement bcdEle;
-
 			VARIANT varTmp;
 			pWcoEle->Get(L"StoreFilePath", 0, &varTmp, NULL, NULL);
 			bcdEle.StoreFilePath = (wchar_t*)varTmp.bstrVal;
@@ -171,6 +172,13 @@ bool BcdObject::EnumerateElements(std::vector<BcdElement>& vecElement)
 			pWcoEle->Get(L"Type", 0, &varTmp, NULL, NULL);
 			bcdEle.Type = varTmp.uintVal;
 			vecElement.push_back(bcdEle);
+			*/
+			BcdElement* pEle = BuildBcdElementStruct2(pWcoEle);
+			if (pEle == NULL)
+			{
+				continue;
+			}
+			vecElement.push_back(pEle);
 		}
 		bReturnValue = true;
 		
@@ -190,7 +198,7 @@ bool BcdObject::EnumerateElements(std::vector<BcdElement>& vecElement)
 
 bool BcdObject::EnumerateElementTypes(std::vector<UINT32>& vecType)
 {
-	std::vector<BcdElement> vecElement;
+	std::vector<BcdElement*> vecElement;
 	bool bRet = EnumerateElements(vecElement);
 	if (!bRet)
 	{
@@ -198,7 +206,8 @@ bool BcdObject::EnumerateElementTypes(std::vector<UINT32>& vecType)
 	}
 	for (size_t i = 0; i < vecElement.size(); i++)
 	{
-		vecType.push_back(vecElement[i].Type);
+		vecType.push_back(vecElement[i]->Type);
+		delete vecElement[i];
 	}
 	return true;
 }
@@ -231,7 +240,7 @@ bool BcdObject::GetElementWithFlags(ULONG Type, ULONG Flags, BcdElement & Elemen
 		varFlagsIn.uintVal = Flags;
 		pWboGetElementInput->Put(L"Flags", 0, &varFlagsIn, 0);
 
-		IWbemServices* pWbemServ = wimBase.getSvc();
+		IWbemServices* pWbemServ = getSvc();
 		
 		hres = pWbemServ->ExecMethod(varBcdObjectPath.bstrVal, BSTR(L"GetElementWithFlags"), 0, NULL, pWboGetElementInput, &pWbcGetelementOutput, NULL);
 		if (FAILED(hres))
@@ -978,8 +987,8 @@ bool BcdObject::GetBcdObjectDescription(std::wstring &wstrDescription)
 			pWboEle->Release();
 			return false;
 		}
-		BcdStringElement stringEle = BuildBcdStringElementStruct(pWboEle);
-		wstrDescription = stringEle.String;
+		BcdStringElement* stringEle = Build_BcdString_ElementStruct(pWboEle);
+		wstrDescription = stringEle->String;
 		return true;	
 	}
 
@@ -1011,6 +1020,54 @@ bool BcdObject::GetBcdObjectDescription(std::wstring &wstrDescription)
 	}
 	////////////////////////////////////////////////////////////
 	return true;
+}
+
+BCD_DEVICE_DATA_TYPE BcdObject::GetDeviceElementDataType(IWbemClassObject* pwboDeviceDataObject)
+{
+	BCD_DEVICE_DATA_TYPE deviceDataValueType = DEVICE_DATA_TYPE_DeviceUnknownData;
+	if (pwboDeviceDataObject == NULL)
+	{
+		return deviceDataValueType;
+	}
+	VARIANT varClass;
+	pwboDeviceDataObject->Get(L"__Class", 0, &varClass, NULL, NULL);
+	if (!wcscmp(varClass.bstrVal, L"BcdDeviceFileData"))
+	{
+		deviceDataValueType = DEVICE_DATA_TYPE_DeviceFileData;
+	}
+	else if (!wcscmp(varClass.bstrVal, L"BcdDeviceLocateData"))
+	{
+		deviceDataValueType = DEVICE_DATA_TYPE_DeviceLocateData;
+	}
+	else if (!wcscmp(varClass.bstrVal, L"BcdDeviceLocateElementChildData"))
+	{
+		deviceDataValueType = DEVICE_DATA_TYPE_DeviceLocateElementChildData;
+	}
+	else if (!wcscmp(varClass.bstrVal, L"BcdDeviceLocateElementData"))
+	{
+		deviceDataValueType = DEVICE_DATA_TYPE_DeviceLocateElementData;
+	}
+	else if (!wcscmp(varClass.bstrVal, L"BcdDeviceLocateStringData"))
+	{
+		deviceDataValueType = DEVICE_DATA_TYPE_DeviceLocateStringData;
+	}
+	else if (!wcscmp(varClass.bstrVal, L"BcdDevicePartitionData"))
+	{
+		deviceDataValueType = DEVICE_DATA_TYPE_DevicePartitionData;
+	}
+	else if (!wcscmp(varClass.bstrVal, L"BcdDeviceQualifiedPartitionData"))
+	{
+		deviceDataValueType = DEVICE_DATA_TYPE_DeviceQualifiedPartitionData;
+	}
+	else if (!wcscmp(varClass.bstrVal, L"BcdDeviceUnknownData"))
+	{
+		deviceDataValueType = DEVICE_DATA_TYPE_DeviceUnknownData;
+	}
+	else
+	{
+		deviceDataValueType = DEVICE_DATA_TYPE_DeviceData;
+	}
+	return deviceDataValueType;
 }
 	
 
@@ -1105,7 +1162,7 @@ BcdElement BcdObject::BuildBcdElementStruct(IWbemClassObject* pwboEle)
 {
 	VARIANT varTmp;
 	memset(&varTmp, 0, sizeof(VARIANT));
-	BcdStringElement ele;
+	BcdElement ele;
 
 	HRESULT hres = pwboEle->Get(L"StoreFilePath", 0, &varTmp, NULL, NULL);
 	ele.StoreFilePath = varTmp.bstrVal;
@@ -1118,10 +1175,77 @@ BcdElement BcdObject::BuildBcdElementStruct(IWbemClassObject* pwboEle)
 	hres = pwboEle->Get(L"Type", 0, &varTmp, NULL, NULL);
 	ele.Type = varTmp.uintVal;
 
+	//EleValueType eleValueType = GetElementValueType2(pwboEle);
+
 	return ele;
 }
+BcdElement* BcdObject::BuildBcdElementStruct2(IWbemClassObject* pwboEle)
+{
+	EleValueType eleValueType = GetElementValueType2(pwboEle);
+	
+	switch (eleValueType)
+	{
+	case EleValueType_error:
+	{
+		return NULL;
+	}
+	break;
+	case EleValueType_Base:
+	{
+		BcdElement bcdEle = BuildBcdElementStruct(pwboEle);		
+		BcdElement* pBcdEle = new BcdElement;
+		pBcdEle->valueType = EleValueType_Base;
+		*pBcdEle = bcdEle;		
+		return pBcdEle;
+		break;
+	}
+		
+	case EleValueType_Device:
+		break;
+	case EleValueType_Boolean:
+		return Build_BcdBoolean_ElementStruct(pwboEle);
+		break;
+	case EleValueType_Integer:
+		return Build_BcdInteger_ElementStruct(pwboEle);
+		break;
+	case EleValueType_IntegersArray:
+		return Build_BCDIntegerList_ElementStruct(pwboEle);
+		break;
+	case EleValueType_BcdObjectId:
+		return Build_BcdObjec_ElementStruct(pwboEle);
+		break;
+	case EleValueType_BcdObjectIdArray:
+		return Build_BcdObjectList_ElementStruct(pwboEle);
+		break;
+	case EleValueType_BcdString:
+		return Build_BcdString_ElementStruct(pwboEle);
+		break;
+	case EleValueType_BcdUnknown:
+		return Build_BcdUnknown_ElementStruct(pwboEle);
+		break;
+	default:
+		break;
+	}
+	return NULL;
+}
+BcdStringElement* BcdObject::Build_BcdString_ElementStruct(IWbemClassObject* pwboEle)
+{
+	VARIANT varTmp;
+	memset(&varTmp, 0, sizeof(VARIANT));
+	BcdStringElement *stringEle = new BcdStringElement;
+	HRESULT hres = pwboEle->Get(L"String", 0, &varTmp, NULL, NULL);
 
-BcdStringElement BcdObject::BuildBcdStringElementStruct(IWbemClassObject* pwboEle)
+	stringEle->String = varTmp.bstrVal;
+
+	BcdElement ele = BuildBcdElementStruct(pwboEle);
+	stringEle->ObjectId = ele.ObjectId;
+	stringEle->StoreFilePath = ele.StoreFilePath;
+	stringEle->Type = ele.Type;
+	stringEle->valueType = EleValueType_BcdString;
+	return stringEle;
+}
+/*
+BcdDeviceElement BcdObject::Build_BcdDevice_ElementStruct(IWbemClassObject* pwboEle)
 {
 	VARIANT varTmp;
 	memset(&varTmp, 0, sizeof(VARIANT));
@@ -1134,6 +1258,141 @@ BcdStringElement BcdObject::BuildBcdStringElementStruct(IWbemClassObject* pwboEl
 	stringEle.ObjectId = ele.ObjectId;
 	stringEle.StoreFilePath = ele.StoreFilePath;
 	stringEle.Type = ele.Type;
-	return stringEle;
+
+	memset(&varTmp, 0, sizeof(VARIANT));
+	hres = pwboEle->Get(L"Device", 0, &varTmp, NULL, NULL);
+	
+	IWbemClassObject* wcoDevice = (IWbemClassObject*)varTmp.byref;
+	BcdDeviceData deviceData;
+	memset(&varTmp, 0, sizeof(VARIANT));
+	hres = wcoDevice->Get(L"DeviceType", 0, &varTmp, NULL, NULL);
+	deviceData.DeviceType = (BCD_DEVICE_TYPE)varTmp.uintVal;
+
+	memset(&varTmp, 0, sizeof(VARIANT));
+	hres = wcoDevice->Get(L"AdditionalOptions", 0, &varTmp, NULL, NULL);
+	deviceData.AdditionalOptions = (wchar_t)varTmp.bstrVal;
+	
+	BCD_DEVICE_DATA_TYPE deviceDataType = GetDeviceElementDataType(wcoDevice);
+	if (deviceDataType == DEVICE_DATA_TYPE_DeviceData)
+	{
+
+	}
+	//return stringEle;
+}
+*/
+
+BcdBooleanElement* BcdObject::Build_BcdBoolean_ElementStruct(IWbemClassObject* pwboEle)
+{
+	VARIANT varTmp;
+	memset(&varTmp, 0, sizeof(VARIANT));
+	BcdBooleanElement *boolEle = new BcdBooleanElement;
+	HRESULT hres = pwboEle->Get(L"Boolean", 0, &varTmp, NULL, NULL);
+
+	boolEle->Boolean = varTmp.boolVal;
+
+	BcdElement ele = BuildBcdElementStruct(pwboEle);
+	boolEle->ObjectId = ele.ObjectId;
+	boolEle->StoreFilePath = ele.StoreFilePath;
+	boolEle->Type = ele.Type;
+	boolEle->valueType = EleValueType_Boolean;
+	return boolEle;
 }
 
+BcdIntegerElement* BcdObject::Build_BcdInteger_ElementStruct(IWbemClassObject* pwboEle)
+{
+	VARIANT varTmp;
+	memset(&varTmp, 0, sizeof(VARIANT));
+	BcdIntegerElement *integerEle = new BcdIntegerElement;
+	HRESULT hres = pwboEle->Get(L"Integer", 0, &varTmp, NULL, NULL);
+
+	integerEle->Integer = varTmp.ullVal;
+
+	BcdElement ele = BuildBcdElementStruct(pwboEle);
+	integerEle->ObjectId = ele.ObjectId;
+	integerEle->StoreFilePath = ele.StoreFilePath;
+	integerEle->Type = ele.Type;
+	integerEle->valueType = EleValueType_Integer;
+	return integerEle;
+}
+
+BcdIntegerListElement* BcdObject::Build_BCDIntegerList_ElementStruct(IWbemClassObject* pwboEle)
+{
+	VARIANT varTmp;
+	memset(&varTmp, 0, sizeof(VARIANT));
+	BcdIntegerListElement *integerListEle = new BcdIntegerListElement;
+	HRESULT hres = pwboEle->Get(L"Integers", 0, &varTmp, NULL, NULL);
+
+	if (!(varTmp.vt & VT_ARRAY)) //返回值应该是个数组
+	{
+		return NULL;
+	}
+	for (ULONG i = 0; i < varTmp.parray->rgsabound->cElements; i++)
+	{
+		BSTR bStr;
+		LONG iTmp = (LONG)i;
+		SafeArrayGetElement(varTmp.parray, &iTmp, &bStr);
+		integerListEle->vecInteger.push_back((wchar_t*)bStr);
+	}
+	BcdElement ele = BuildBcdElementStruct(pwboEle);
+	integerListEle->ObjectId = ele.ObjectId;
+	integerListEle->StoreFilePath = ele.StoreFilePath;
+	integerListEle->Type = ele.Type;
+	integerListEle->valueType = EleValueType_IntegersArray;
+	return integerListEle;
+}
+
+BcdObjectElement* BcdObject::Build_BcdObjec_ElementStruct(IWbemClassObject* pwboEle)
+{
+	VARIANT varTmp;
+	memset(&varTmp, 0, sizeof(VARIANT));
+	BcdObjectElement *objectEle = new BcdObjectElement;
+	HRESULT hres = pwboEle->Get(L"Id", 0, &varTmp, NULL, NULL);
+	objectEle->Id = varTmp.bstrVal;
+	BcdElement ele = BuildBcdElementStruct(pwboEle);
+	objectEle->ObjectId = ele.ObjectId;
+	objectEle->StoreFilePath = ele.StoreFilePath;
+	objectEle->Type = ele.Type;
+	objectEle->valueType = EleValueType_BcdObjectId;
+	return objectEle;
+}
+
+BcdObjectListElement* BcdObject::Build_BcdObjectList_ElementStruct(IWbemClassObject* pwboEle)
+{
+	VARIANT varTmp;
+	memset(&varTmp, 0, sizeof(VARIANT));
+	BcdObjectListElement *objectListEle = new BcdObjectListElement;
+	HRESULT hres = pwboEle->Get(L"Ids", 0, &varTmp, NULL, NULL);
+
+	if (!(varTmp.vt & VT_ARRAY)) //返回值应该是个数组
+	{
+		return NULL;
+	}
+	for (ULONG i = 0; i < varTmp.parray->rgsabound->cElements; i++)
+	{
+		BSTR bStr;
+		LONG iTmp = (LONG)i;
+		SafeArrayGetElement(varTmp.parray, &iTmp, &bStr);
+		objectListEle->vecId.push_back((wchar_t*)bStr);
+	}
+	BcdElement ele = BuildBcdElementStruct(pwboEle);
+	objectListEle->ObjectId = ele.ObjectId;
+	objectListEle->StoreFilePath = ele.StoreFilePath;
+	objectListEle->Type = ele.Type;
+	objectListEle->valueType = EleValueType_BcdObjectIdArray;
+	return objectListEle;
+}
+
+BcdUnknownElement* BcdObject::Build_BcdUnknown_ElementStruct(IWbemClassObject* pwboEle)
+{
+	VARIANT varTmp;
+	memset(&varTmp, 0, sizeof(VARIANT));
+	BcdUnknownElement *unknownEle = new BcdUnknownElement;
+	HRESULT hres = pwboEle->Get(L"ActualType", 0, &varTmp, NULL, NULL);
+	unknownEle->ActualType = varTmp.ullVal;
+	BcdElement ele = BuildBcdElementStruct(pwboEle);
+	unknownEle->ObjectId = ele.ObjectId;
+	unknownEle->StoreFilePath = ele.StoreFilePath;
+	unknownEle->Type = ele.Type;
+	unknownEle->valueType = EleValueType_BcdUnknown;
+	return unknownEle;
+}

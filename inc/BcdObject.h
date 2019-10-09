@@ -81,7 +81,7 @@ public:
 	void Release();
 	BcdObject(IWbemClassObject* pwco);
 	bool DeleteElement(UINT32 Type);
-	bool EnumerateElements(std::vector<BcdElement> &vecElement);
+	bool EnumerateElements(std::vector<BcdElement*> &vecElement);
 	bool EnumerateElementTypes(std::vector<UINT32> &Types);
 	bool GetElement(UINT32 Type,  BcdElement &Element);
 	bool GetElementWithFlags(ULONG Type, ULONG Flags, BcdElement &Element);
@@ -152,6 +152,7 @@ public:
 	EleValueType GetElementValueType(ULONG Type);
 	EleValueType GetElementValueType2(IWbemClassObject* pwboEleObject);
 	bool GetBcdObjectDescription(std::wstring &wstrDescription);
+	BCD_DEVICE_DATA_TYPE GetDeviceElementDataType(IWbemClassObject* pwboDeviceDataObject);
 public:
 	std::wstring m_StoreFilePath;
 	std::wstring m_Id;
@@ -165,13 +166,27 @@ private:
 	bool GetBcdType(UINT &type);
 	HRESULT getBcdObjectPath(VARIANT &varBcdObjectPath);	
 	bool	getOutputReturnValue(IWbemClassObject* pWbcOutPut);
-	//IWbemServices* getSvc();
+	
 	IWbemClassObject* getElementClassObj(ULONG Type);
 	/////////////////////////////////////////////////////////////////////////
 	//
 	BcdElement BuildBcdElementStruct(IWbemClassObject* pwboEle);
-	BcdStringElement BuildBcdStringElementStruct(IWbemClassObject* pwboEle);
+
+	BcdElement* BuildBcdElementStruct2(IWbemClassObject* pwboEle);
+
+
+	BcdStringElement* Build_BcdString_ElementStruct(IWbemClassObject* pwboEle);
+	BcdDeviceElement Build_BcdDevice_ElementStruct(IWbemClassObject* pwboEle);
+	BcdBooleanElement* Build_BcdBoolean_ElementStruct(IWbemClassObject* pwboEle);
+	BcdIntegerElement* Build_BcdInteger_ElementStruct(IWbemClassObject* pwboEle);
+	BcdIntegerListElement* Build_BCDIntegerList_ElementStruct(IWbemClassObject* pwboEle);
+	BcdObjectElement* Build_BcdObjec_ElementStruct(IWbemClassObject* pwboEle);
+	BcdObjectListElement* Build_BcdObjectList_ElementStruct(IWbemClassObject* pwboEle);	
+	BcdUnknownElement* Build_BcdUnknown_ElementStruct(IWbemClassObject* pwboEle);
 	/////////////////////////////////////////////////////////////////////////
+	//
+
+	//////////////////////////////////////////////////////////////////////////
 };
 
 BcdObject* CreateBcdObjectObj(IWbemClassObject* pwboBcdObject);

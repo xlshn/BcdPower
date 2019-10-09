@@ -36,4 +36,9 @@ public:
 	CTreeCtrl m_bcdStoreTree;
 private:
 	std::vector<BcdStore*> vecBcdStore;
+	void ExpandAllTree(HTREEITEM hTreeItem);
+	virtual BOOL OnCommand(WPARAM wParam, LPARAM lParam);
+public:
+	CListCtrl m_listBcdObjectDetail;	
+	afx_msg void OnTvnSelchangedTreeBcdSotre(NMHDR *pNMHDR, LRESULT *pResult);
 };
