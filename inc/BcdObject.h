@@ -153,6 +153,8 @@ public:
 	EleValueType GetElementValueType2(IWbemClassObject* pwboEleObject);
 	bool GetBcdObjectDescription(std::wstring &wstrDescription);
 	BCD_DEVICE_DATA_TYPE GetDeviceElementDataType(IWbemClassObject* pwboDeviceDataObject);
+
+	static std::wstring getEleDisplay(unsigned int ele);
 public:
 	std::wstring m_StoreFilePath;
 	std::wstring m_Id;
@@ -176,7 +178,7 @@ private:
 
 
 	BcdStringElement* Build_BcdString_ElementStruct(IWbemClassObject* pwboEle);
-	BcdDeviceElement Build_BcdDevice_ElementStruct(IWbemClassObject* pwboEle);
+	BcdDeviceElement* Build_BcdDevice_ElementStruct(IWbemClassObject* pwboEle);
 	BcdBooleanElement* Build_BcdBoolean_ElementStruct(IWbemClassObject* pwboEle);
 	BcdIntegerElement* Build_BcdInteger_ElementStruct(IWbemClassObject* pwboEle);
 	BcdIntegerListElement* Build_BCDIntegerList_ElementStruct(IWbemClassObject* pwboEle);
@@ -184,8 +186,17 @@ private:
 	BcdObjectListElement* Build_BcdObjectList_ElementStruct(IWbemClassObject* pwboEle);	
 	BcdUnknownElement* Build_BcdUnknown_ElementStruct(IWbemClassObject* pwboEle);
 	/////////////////////////////////////////////////////////////////////////
-	//
+	BcdDeviceData* BuildBcdDevice(IWbemClassObject* pwboEle);
 
+	BcdDeviceData* BuildBcdDevice_Data(IWbemClassObject* pwboEle);
+	BcdDeviceFileData* BuildBcdDevice_FileData(IWbemClassObject* pwboEle);
+	BcdDeviceLocateData* BuildBcdDevice_LocateData(IWbemClassObject* pwboEle);
+	BcdDevicePartitionData* BuildBcdDevice_PartitionData(IWbemClassObject* pwbo);
+	BcdDeviceQualifiedPartitionData* BuildBcdDevice_QualiPartitionData(IWbemClassObject* pwbo);
+	BcdDeviceUnknownData* BuildBcdDevice_UnknownData(IWbemClassObject* pwbo);
+	BcdDeviceLocateStringData* BuildBcdDevice_LocateStringData(IWbemClassObject* pwbo);
+	BcdDeviceLocateElementData* BuildBcdDevice_LocateElementData(IWbemClassObject* pwbo);
+	BcdDeviceLocateElementChildData* BuildBcdDevice_LocateElementChildData(IWbemClassObject* pwbo);
 	//////////////////////////////////////////////////////////////////////////
 };
 

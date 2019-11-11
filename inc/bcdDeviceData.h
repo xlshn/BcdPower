@@ -31,8 +31,22 @@ enum BCD_DEVICE_DATA_TYPE
 class BcdDeviceData
 {
 public:
-	BCD_DEVICE_TYPE DeviceType;
+	BCD_DEVICE_TYPE DeviceType;	
 	std::wstring AdditionalOptions;
+	BCD_DEVICE_DATA_TYPE DataType;
+	BcdDeviceData()
+	{
+		DataType = DEVICE_DATA_TYPE_DeviceData;
+		DeviceType = DEVICE_TYPE_BootDevice;
+	}
+	virtual ~BcdDeviceData()
+	{
+		AdditionalOptions.~basic_string();
+	}
+
+	virtual std::wstring getDeviceDisplayString();
+protected:
+	std::wstring getBootDeviceString(BCD_DEVICE_TYPE DeviceType);
 };
 
 class BcdDeviceFileData : public BcdDeviceData
@@ -40,6 +54,20 @@ class BcdDeviceFileData : public BcdDeviceData
 public:
 	BcdDeviceData* Parent;
 	std::wstring  Path;
+	BcdDeviceFileData()
+	{
+		Parent = NULL;
+	}
+	~BcdDeviceFileData()
+	{
+		if (Parent != NULL)
+		{
+			delete Parent;
+			Parent = NULL;
+		}
+		Path.~basic_string();
+	}
+	virtual std::wstring getDeviceDisplayString();
 };
 
 enum BcdDeviceLocateDataType
@@ -58,6 +86,12 @@ class BcdDevicePartitionData : public BcdDeviceData
 {
 public:
 	std::wstring Path;
+	~BcdDevicePartitionData()
+	{
+		Path.~basic_string();
+	}
+
+	virtual std::wstring getDeviceDisplayString();
 };
 
 enum DevicePartitionStyle
@@ -71,23 +105,70 @@ public:
 	DevicePartitionStyle PartitionStyle;
 	std::wstring DiskSignature;
 	std::wstring PartitionIdentifier;
+	~BcdDeviceQualifiedPartitionData()
+	{
+		DiskSignature.~basic_string();
+		PartitionIdentifier.~basic_string();
+	}
+
+	virtual std::wstring getDeviceDisplayString();
 };
 
-class BcdDeviceUnknownData : BcdDeviceData
+class BcdDeviceUnknownData : public BcdDeviceData
 {
 public:
 	//unsigned char Data[];
 	unsigned char *Data;
+	unsigned int DataSize;
+	BcdDeviceUnknownData()
+	{
+		Data = NULL;
+		DataSize = 0;
+	}
+	~BcdDeviceUnknownData()
+	{
+		if (Data != NULL)
+		{
+			delete Data;
+			Data = NULL;
+			DataSize = 0;
+		}
+	}
 };
 
-class BcdDeviceLocateStringData : BcdDeviceLocateData
+class BcdDeviceLocateStringData : public BcdDeviceLocateData
 {
 public:
 	std::wstring Path;
+	~BcdDeviceLocateStringData()
+	{
+		Path.~basic_string();
+	}
+
+	virtual std::wstring getDeviceDisplayString();
 };
 
-class BcdDeviceLocateElementData : BcdDeviceLocateData
+class BcdDeviceLocateElementData : public BcdDeviceLocateData
 {
 public:
 	unsigned int Element;
+};
+
+class BcdDeviceLocateElementChildData : public BcdDeviceLocateData
+{
+public:
+	unsigned int        Element;
+	BcdDeviceData* Parent;
+	BcdDeviceLocateElementChildData()
+	{
+		Parent = NULL;
+	}
+	~BcdDeviceLocateElementChildData()
+	{
+		if (Parent)
+		{
+			delete Parent;
+			Parent = NULL;
+		}
+	}
 };

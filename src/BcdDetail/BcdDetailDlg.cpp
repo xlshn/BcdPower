@@ -12,7 +12,8 @@
 #define new DEBUG_NEW
 #endif
 
-#define MENU_BCDSTORE_ITEM_OPENBCDSTROE 11000
+#define MENU_BCDSTORE_ITEM_OPENBCDSTROE			11000
+#define MENU_BCDSTORE_ITEM_OPENSYSTEMBCDSTROE	11001
 
 // CAboutDlg dialog used for App About
 
@@ -68,7 +69,8 @@ BEGIN_MESSAGE_MAP(CBcdDetailDlg, CDialogEx)
 	ON_WM_SYSCOMMAND()
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
-	ON_COMMAND(MENU_BCDSTORE_ITEM_OPENBCDSTROE, OnOpenBcdStore)	
+	ON_COMMAND(MENU_BCDSTORE_ITEM_OPENBCDSTROE, OnOpenOtherBcdStore)	
+	ON_COMMAND(MENU_BCDSTORE_ITEM_OPENSYSTEMBCDSTROE, OnOpenCurrentSysBcdStore)
 	ON_NOTIFY(TVN_SELCHANGED, IDC_TREE_BCD_SOTRE, &CBcdDetailDlg::OnTvnSelchangedTreeBcdSotre)
 END_MESSAGE_MAP()
 
@@ -111,6 +113,7 @@ BOOL CBcdDetailDlg::OnInitDialog()
 	pMenu->CreateMenu();	
 	CMenu menu;
 	menu.CreateMenu();//新建菜单
+	menu.AppendMenu(MF_STRING, MENU_BCDSTORE_ITEM_OPENSYSTEMBCDSTROE, L"OpenCurrentSystemBcdStore");
 	menu.AppendMenu(MF_STRING, MENU_BCDSTORE_ITEM_OPENBCDSTROE, L"OpenBcdStore");//新建子菜单的菜单项1
 	pMenu->AppendMenu(MF_POPUP, (UINT)menu.m_hMenu, L"BcdStore");//增加子菜单 
 	SetMenu(pMenu);
@@ -144,7 +147,7 @@ BOOL CBcdDetailDlg::OnInitDialog()
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
 
-void CBcdDetailDlg::OnOpenBcdStore()
+void CBcdDetailDlg::OnOpenOtherBcdStore()
 {
 	wchar_t pwszBCDPath[ MAX_PATH * 2] = { 0 };
 	OPENFILENAME openFileName;
@@ -160,18 +163,46 @@ void CBcdDetailDlg::OnOpenBcdStore()
 	{
 		return;
 	}
+
+	OpenBcdStore(pwszBCDPath);
+	
+}
+
+void CBcdDetailDlg::OnOpenCurrentSysBcdStore()
+{
+	OpenBcdStore(L"");
+}
+
+void CBcdDetailDlg::ExpandAllTree(HTREEITEM hTreeItem)
+{
+	if (!m_bcdStoreTree.ItemHasChildren(hTreeItem))
+	{
+		return;
+	}
+	HTREEITEM hNextItem = m_bcdStoreTree.GetChildItem(hTreeItem);
+	while (hNextItem != NULL)
+	{
+		ExpandAllTree(hNextItem);
+		hNextItem = m_bcdStoreTree.GetNextItem(hNextItem, TVGN_NEXT);
+	}
+	m_bcdStoreTree.Expand(hTreeItem, TVE_EXPAND);
+
+}
+
+bool CBcdDetailDlg::OpenBcdStore(const std::wstring& wstrBcdPath)
+{
 	BcdStore* pBcdStore = NULL;
-	bool bRes = BcdStore::OpenStore(pwszBCDPath, pBcdStore);
+	bool bRes = BcdStore::OpenStore(wstrBcdPath, pBcdStore);
 	if (!bRes)
 	{
 		::MessageBox(m_hWnd, L"Open bcd fail fail", L"Error", MB_OK);
-		return;
-	}		
+		return false;
+	}
 	vecBcdStore.push_back(pBcdStore);
 	std::vector<BcdObject*> vecBcdObjects;
 	pBcdStore->EnumerateObjects(0, vecBcdObjects);
 	TVINSERTSTRUCT treeItem;
-	memset(&treeItem, 0, sizeof(treeItem));	
+	memset(&treeItem, 0, sizeof(treeItem));
 	treeItem.item.mask = TVIF_TEXT | TVIF_PARAM;// | TVIF_CHILDREN;
 	//treeItem.item.cChildren = I_CHILDRENCALLBACK;
 	treeItem.item.pszText = L"BcdStore";
@@ -251,7 +282,7 @@ void CBcdDetailDlg::OnOpenBcdStore()
 			m_bcdStoreTree.InsertItem(&treeItemTmp);
 			continue;
 		}
-		treeItemTmp.item.pszText = (wchar_t*)wstrDescription.c_str();		
+		treeItemTmp.item.pszText = (wchar_t*)wstrDescription.c_str();
 		treeItemTmp.item.cchTextMax = wcslen(treeItem.item.pszText);
 		treeItemTmp.item.lParam = (LPARAM)pBcdObject;
 		//treeItemTmp.hInsertAfter = TVI_FIRST;		
@@ -270,28 +301,13 @@ void CBcdDetailDlg::OnOpenBcdStore()
 			treeItemTmp.hParent = hRootInheritableItem;
 		}
 		else if (objCode == Device)
-		{			
+		{
 			treeItemTmp.hParent = hRootDeviceItem;
-		}		
+		}
 		m_bcdStoreTree.InsertItem(&treeItemTmp);
 	}
 	ExpandAllTree(hRootItem);
-}
-
-void CBcdDetailDlg::ExpandAllTree(HTREEITEM hTreeItem)
-{
-	if (!m_bcdStoreTree.ItemHasChildren(hTreeItem))
-	{
-		return;
-	}
-	HTREEITEM hNextItem = m_bcdStoreTree.GetChildItem(hTreeItem);
-	while (hNextItem != NULL)
-	{
-		ExpandAllTree(hNextItem);
-		hNextItem = m_bcdStoreTree.GetNextItem(hNextItem, TVGN_NEXT);
-	}
-	m_bcdStoreTree.Expand(hTreeItem, TVE_EXPAND);
-
+	return true;
 }
 BOOL CBcdDetailDlg::OnCommand(WPARAM wParam, LPARAM lParam)
 {
@@ -349,6 +365,7 @@ HCURSOR CBcdDetailDlg::OnQueryDragIcon()
 
 void CBcdDetailDlg::OnTvnSelchangedTreeBcdSotre(NMHDR *pNMHDR, LRESULT *pResult)
 {
+	m_listBcdObjectDetail.DeleteAllItems();
 	LPNMTREEVIEW pNMTreeView = reinterpret_cast<LPNMTREEVIEW>(pNMHDR);
 	*pResult = 0;
 	if ((pNMTreeView->itemNew.mask & TVIF_PARAM) == 0)
@@ -362,5 +379,14 @@ void CBcdDetailDlg::OnTvnSelchangedTreeBcdSotre(NMHDR *pNMHDR, LRESULT *pResult)
 	}
 	std::vector<BcdElement*> vecElement;
 	pBcdObj->EnumerateElements(vecElement);
+	for (size_t i = 0; i < vecElement.size(); i++)
+	{		
+		BcdElement* pEle = vecElement[i];
+		wchar_t pwszEleType[MAX_PATH] = { 0 };
+		swprintf_s(pwszEleType, L"%08x", pEle->Type);
+		m_listBcdObjectDetail.InsertItem(i, pwszEleType);
+		m_listBcdObjectDetail.SetItemText(i, 1, BcdObject::getEleDisplay(pEle->Type).c_str());
+		m_listBcdObjectDetail.SetItemText(i, 2, pEle->getValueString().c_str());
+	}
 	*pResult = 0;
 }

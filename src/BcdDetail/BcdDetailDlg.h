@@ -27,7 +27,8 @@ protected:
 
 	// Generated message map functions
 	virtual BOOL OnInitDialog();
-	afx_msg  void OnOpenBcdStore();
+	afx_msg void OnOpenOtherBcdStore();
+	afx_msg void OnOpenCurrentSysBcdStore();
 	afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
 	afx_msg void OnPaint();
 	afx_msg HCURSOR OnQueryDragIcon();
@@ -37,8 +38,10 @@ public:
 private:
 	std::vector<BcdStore*> vecBcdStore;
 	void ExpandAllTree(HTREEITEM hTreeItem);
+	bool OpenBcdStore(const std::wstring& wstrBcdPath);
 	virtual BOOL OnCommand(WPARAM wParam, LPARAM lParam);
 public:
 	CListCtrl m_listBcdObjectDetail;	
 	afx_msg void OnTvnSelchangedTreeBcdSotre(NMHDR *pNMHDR, LRESULT *pResult);
+
 };

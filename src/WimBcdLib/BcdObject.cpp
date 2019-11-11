@@ -1201,11 +1201,12 @@ BcdElement* BcdObject::BuildBcdElementStruct2(IWbemClassObject* pwboEle)
 	}
 		
 	case EleValueType_Device:
+		return Build_BcdDevice_ElementStruct(pwboEle);
 		break;
-	case EleValueType_Boolean:
+	case EleValueType_Boolean: 
 		return Build_BcdBoolean_ElementStruct(pwboEle);
 		break;
-	case EleValueType_Integer:
+	case EleValueType_Integer://用字符串保存的64位数值
 		return Build_BcdInteger_ElementStruct(pwboEle);
 		break;
 	case EleValueType_IntegersArray:
@@ -1244,42 +1245,25 @@ BcdStringElement* BcdObject::Build_BcdString_ElementStruct(IWbemClassObject* pwb
 	stringEle->valueType = EleValueType_BcdString;
 	return stringEle;
 }
-/*
-BcdDeviceElement BcdObject::Build_BcdDevice_ElementStruct(IWbemClassObject* pwboEle)
+
+BcdDeviceElement* BcdObject::Build_BcdDevice_ElementStruct(IWbemClassObject* pwboEle)
 {
 	VARIANT varTmp;
 	memset(&varTmp, 0, sizeof(VARIANT));
-	BcdStringElement stringEle;
-	HRESULT hres = pwboEle->Get(L"String", 0, &varTmp, NULL, NULL);
-
-	stringEle.String = varTmp.bstrVal;
+	BcdDeviceElement *deviceEle = new BcdDeviceElement;
 
 	BcdElement ele = BuildBcdElementStruct(pwboEle);
-	stringEle.ObjectId = ele.ObjectId;
-	stringEle.StoreFilePath = ele.StoreFilePath;
-	stringEle.Type = ele.Type;
+	deviceEle->ObjectId = ele.ObjectId;
+	deviceEle->StoreFilePath = ele.StoreFilePath;
+	deviceEle->Type = ele.Type;
 
 	memset(&varTmp, 0, sizeof(VARIANT));
-	hres = pwboEle->Get(L"Device", 0, &varTmp, NULL, NULL);
-	
+	HRESULT hres = pwboEle->Get(L"Device", 0, &varTmp, NULL, NULL);	
 	IWbemClassObject* wcoDevice = (IWbemClassObject*)varTmp.byref;
-	BcdDeviceData deviceData;
-	memset(&varTmp, 0, sizeof(VARIANT));
-	hres = wcoDevice->Get(L"DeviceType", 0, &varTmp, NULL, NULL);
-	deviceData.DeviceType = (BCD_DEVICE_TYPE)varTmp.uintVal;
-
-	memset(&varTmp, 0, sizeof(VARIANT));
-	hres = wcoDevice->Get(L"AdditionalOptions", 0, &varTmp, NULL, NULL);
-	deviceData.AdditionalOptions = (wchar_t)varTmp.bstrVal;
-	
-	BCD_DEVICE_DATA_TYPE deviceDataType = GetDeviceElementDataType(wcoDevice);
-	if (deviceDataType == DEVICE_DATA_TYPE_DeviceData)
-	{
-
-	}
-	//return stringEle;
+	deviceEle->Device = BuildBcdDevice(wcoDevice);
+	return deviceEle;
 }
-*/
+
 
 BcdBooleanElement* BcdObject::Build_BcdBoolean_ElementStruct(IWbemClassObject* pwboEle)
 {
@@ -1303,9 +1287,9 @@ BcdIntegerElement* BcdObject::Build_BcdInteger_ElementStruct(IWbemClassObject* p
 	VARIANT varTmp;
 	memset(&varTmp, 0, sizeof(VARIANT));
 	BcdIntegerElement *integerEle = new BcdIntegerElement;
-	HRESULT hres = pwboEle->Get(L"Integer", 0, &varTmp, NULL, NULL);
-
-	integerEle->Integer = varTmp.ullVal;
+	//用字符串保存的64位数值
+	HRESULT hres = pwboEle->Get(L"Integer", 0, &varTmp, NULL, NULL);	
+	integerEle->Integer = _wtoi64(varTmp.bstrVal);
 
 	BcdElement ele = BuildBcdElementStruct(pwboEle);
 	integerEle->ObjectId = ele.ObjectId;
@@ -1395,4 +1379,1004 @@ BcdUnknownElement* BcdObject::Build_BcdUnknown_ElementStruct(IWbemClassObject* p
 	unknownEle->Type = ele.Type;
 	unknownEle->valueType = EleValueType_BcdUnknown;
 	return unknownEle;
+}
+
+BcdDeviceData* BcdObject::BuildBcdDevice_Data(IWbemClassObject* pwboEle)
+{
+	VARIANT varTmp;
+	memset(&varTmp, 0, sizeof(VARIANT));
+	BcdDeviceData *deviceData = new BcdDeviceData;
+	HRESULT hres = pwboEle->Get(L"DeviceType", 0, &varTmp, NULL, NULL);
+	deviceData->DeviceType = (BCD_DEVICE_TYPE)varTmp.uintVal;
+
+	memset(&varTmp, 0, sizeof(VARIANT));
+	hres = pwboEle->Get(L"AdditionalOptions", 0, &varTmp, NULL, NULL);
+	deviceData->AdditionalOptions = varTmp.bstrVal;
+	return deviceData;
+}
+BcdDeviceFileData* BcdObject::BuildBcdDevice_FileData(IWbemClassObject* pwbo)
+{
+	BcdDeviceFileData *fileData = new BcdDeviceFileData;
+	BcdDeviceData* deviceData = BuildBcdDevice_Data(pwbo);
+	fileData->AdditionalOptions = deviceData->AdditionalOptions;
+	fileData->DeviceType = deviceData->DeviceType;
+	fileData->DataType = DEVICE_DATA_TYPE_DeviceFileData;
+
+	delete deviceData;
+	VARIANT varTmp;
+	memset(&varTmp, 0, sizeof(VARIANT));
+	HRESULT hres = pwbo->Get(L"Path", 0, &varTmp, NULL, NULL);
+	fileData->Path = varTmp.bstrVal;
+
+	memset(&varTmp, 0, sizeof(VARIANT));
+	hres = pwbo->Get(L"Parent", 0, &varTmp, NULL, NULL);
+	if (!FAILED(hres) && varTmp.byref != NULL)
+	{
+		IWbemClassObject* parentWbo = (IWbemClassObject*)varTmp.byref;
+		fileData->Parent = BuildBcdDevice(parentWbo);		
+	}
+
+	return fileData;
+}
+
+BcdDeviceLocateData* BcdObject::BuildBcdDevice_LocateData(IWbemClassObject* pwbo)
+{
+	BcdDeviceData* deviceData =  BuildBcdDevice_Data(pwbo);
+	BcdDeviceLocateData* locateData = new BcdDeviceLocateData;
+	locateData->AdditionalOptions = deviceData->AdditionalOptions;
+	locateData->DeviceType = deviceData->DeviceType;
+	locateData->DataType = DEVICE_DATA_TYPE_DeviceLocateData;
+	delete deviceData;
+
+	VARIANT varTmp;
+	memset(&varTmp, 0, sizeof(VARIANT));
+	HRESULT hres = pwbo->Get(L"Type", 0, &varTmp, NULL, NULL);
+	locateData->Type = (BcdDeviceLocateDataType)varTmp.uintVal;
+	return locateData;
+}
+
+BcdDevicePartitionData* BcdObject::BuildBcdDevice_PartitionData(IWbemClassObject* pwbo)
+{
+	BcdDeviceData* deviceData = BuildBcdDevice_Data(pwbo);
+	BcdDevicePartitionData* partitionData = new BcdDevicePartitionData;
+	partitionData->AdditionalOptions = deviceData->AdditionalOptions;
+	partitionData->DeviceType = deviceData->DeviceType;
+	partitionData->DataType = DEVICE_DATA_TYPE_DevicePartitionData;
+	delete deviceData;
+
+	VARIANT varTmp;
+	memset(&varTmp, 0, sizeof(VARIANT));
+	HRESULT hres = pwbo->Get(L"Path", 0, &varTmp, NULL, NULL);
+	partitionData->Path = varTmp.bstrVal;
+	return partitionData;
+}
+
+BcdDeviceQualifiedPartitionData* BcdObject::BuildBcdDevice_QualiPartitionData(IWbemClassObject* pwbo)
+{
+	BcdDeviceData* deviceData = BuildBcdDevice_Data(pwbo);
+	BcdDeviceQualifiedPartitionData* qualifiedPartitionData = new BcdDeviceQualifiedPartitionData;
+	qualifiedPartitionData->AdditionalOptions = deviceData->AdditionalOptions;
+	qualifiedPartitionData->DeviceType = deviceData->DeviceType;
+	qualifiedPartitionData->DataType = DEVICE_DATA_TYPE_DeviceQualifiedPartitionData;
+	delete deviceData;
+
+	VARIANT varTmp;
+	memset(&varTmp, 0, sizeof(VARIANT));
+	HRESULT hres = pwbo->Get(L"PartitionStyle", 0, &varTmp, NULL, NULL);
+	qualifiedPartitionData->PartitionStyle = (DevicePartitionStyle)varTmp.uintVal;
+
+	memset(&varTmp, 0, sizeof(VARIANT));
+	hres = pwbo->Get(L"DiskSignature", 0, &varTmp, NULL, NULL);
+	qualifiedPartitionData->DiskSignature = varTmp.bstrVal;
+
+	memset(&varTmp, 0, sizeof(VARIANT));
+	hres = pwbo->Get(L"PartitionIdentifier", 0, &varTmp, NULL, NULL);
+	qualifiedPartitionData->PartitionIdentifier = varTmp.bstrVal;
+
+	return qualifiedPartitionData;
+
+}
+
+BcdDeviceUnknownData* BcdObject::BuildBcdDevice_UnknownData(IWbemClassObject* pwbo)
+{
+	BcdDeviceData* deviceData = BuildBcdDevice_Data(pwbo);
+	BcdDeviceUnknownData* unknownData = new BcdDeviceUnknownData;
+	unknownData->AdditionalOptions = deviceData->AdditionalOptions;
+	unknownData->DeviceType = deviceData->DeviceType;
+	unknownData->DataType = DEVICE_DATA_TYPE_DeviceUnknownData;
+	delete deviceData;
+
+	VARIANT varTmp;
+	memset(&varTmp, 0, sizeof(VARIANT));
+	HRESULT hres = pwbo->Get(L"Data", 0, &varTmp, NULL, NULL);
+	unsigned int bufferSize = varTmp.parray->rgsabound->cElements;
+	unsigned char *pBuffer  = new unsigned char[bufferSize];
+	memcpy(pBuffer, varTmp.parray->pvData, bufferSize);
+	unknownData->Data = pBuffer;
+	unknownData->DataSize = bufferSize;
+	return unknownData;
+}
+
+BcdDeviceLocateStringData* BcdObject::BuildBcdDevice_LocateStringData(IWbemClassObject* pwbo)
+{
+	BcdDeviceLocateStringData* locateStringData = new BcdDeviceLocateStringData;
+	BcdDeviceLocateData* dldTmp = (BcdDeviceLocateData*)locateStringData;
+	BcdDeviceLocateData* dld = BuildBcdDevice_LocateData(pwbo);
+	*dldTmp = *dld;
+	delete dld;
+	locateStringData->DataType = DEVICE_DATA_TYPE_DeviceLocateStringData;
+	VARIANT varTmp;
+	memset(&varTmp, 0, sizeof(VARIANT));
+	HRESULT hres = pwbo->Get(L"Path", 0, &varTmp, NULL, NULL);
+	locateStringData->Path = varTmp.bstrVal;
+	return locateStringData;
+}
+
+BcdDeviceLocateElementData* BcdObject::BuildBcdDevice_LocateElementData(IWbemClassObject* pwbo)
+{
+	BcdDeviceLocateElementData* locateElementData = new BcdDeviceLocateElementData;
+	BcdDeviceLocateData* dldTmp = (BcdDeviceLocateData*)locateElementData;
+	BcdDeviceLocateData* dld = BuildBcdDevice_LocateData(pwbo);
+	*dldTmp = *dld;
+	delete dld;
+	locateElementData->DataType = DEVICE_DATA_TYPE_DeviceLocateElementData;
+	VARIANT varTmp;
+	memset(&varTmp, 0, sizeof(VARIANT));
+	HRESULT hres = pwbo->Get(L"Element", 0, &varTmp, NULL, NULL);
+	locateElementData->Element = varTmp.uintVal;
+	return locateElementData;
+}
+
+BcdDeviceLocateElementChildData* BcdObject::BuildBcdDevice_LocateElementChildData(IWbemClassObject* pwbo)
+{
+	BcdDeviceLocateElementChildData* locateElementChildData = new BcdDeviceLocateElementChildData;
+	BcdDeviceLocateData* dldTmp = (BcdDeviceLocateData*)locateElementChildData;
+	BcdDeviceLocateData* dld = BuildBcdDevice_LocateData(pwbo);
+	*dldTmp = *dld;
+	delete dld;
+	locateElementChildData->DataType = DEVICE_DATA_TYPE_DeviceLocateElementChildData;
+	VARIANT varTmp;
+	memset(&varTmp, 0, sizeof(VARIANT));
+	HRESULT hres = pwbo->Get(L"Element", 0, &varTmp, NULL, NULL);
+	locateElementChildData->Element = varTmp.uintVal;
+
+	memset(&varTmp, 0, sizeof(VARIANT));
+	hres = pwbo->Get(L"Parent", 0, &varTmp, NULL, NULL);
+	if (varTmp.byref != NULL)
+	{
+		locateElementChildData->Parent = BuildBcdDevice(pwbo);
+	}
+	else
+	{
+		locateElementChildData->Parent = NULL;
+	}	
+	return locateElementChildData;
+}
+
+BcdDeviceData* BcdObject::BuildBcdDevice(IWbemClassObject* pwboEle)
+{
+	BCD_DEVICE_DATA_TYPE deviceDataType = GetDeviceElementDataType(pwboEle);
+	BcdDeviceData* bcdDeviceData = NULL;
+	switch (deviceDataType)
+	{
+		case DEVICE_DATA_TYPE_DeviceData:
+		{
+			bcdDeviceData = BuildBcdDevice_Data(pwboEle);
+		}
+		break;
+		case DEVICE_DATA_TYPE_DeviceFileData:
+		{
+			bcdDeviceData = BuildBcdDevice_FileData(pwboEle);
+		}
+		break;
+		case DEVICE_DATA_TYPE_DeviceLocateData:
+		{
+			bcdDeviceData = BuildBcdDevice_LocateData(pwboEle);
+		}
+		break;
+		case DEVICE_DATA_TYPE_DeviceLocateElementChildData:
+		{
+			bcdDeviceData = BuildBcdDevice_LocateElementChildData(pwboEle);
+		}
+		break;
+		case DEVICE_DATA_TYPE_DeviceLocateElementData:
+		{
+			bcdDeviceData = BuildBcdDevice_LocateElementData(pwboEle);
+		}
+		break;
+		case DEVICE_DATA_TYPE_DeviceLocateStringData:
+		{
+			bcdDeviceData = BuildBcdDevice_LocateStringData(pwboEle);
+		}
+		break;
+		case DEVICE_DATA_TYPE_DevicePartitionData:
+		{
+			bcdDeviceData = BuildBcdDevice_PartitionData(pwboEle);
+		}
+		break;
+		case DEVICE_DATA_TYPE_DeviceQualifiedPartitionData:
+		{
+			bcdDeviceData = BuildBcdDevice_QualiPartitionData(pwboEle);
+		}
+		break;
+		case DEVICE_DATA_TYPE_DeviceUnknownData:
+		{
+			bcdDeviceData = BuildBcdDevice_UnknownData(pwboEle);
+		}
+		break;
+		default:
+		{
+			return NULL;
+		}	
+	}
+
+	return bcdDeviceData;
+}
+
+std::wstring BcdObject::getEleDisplay(unsigned int ele)
+{
+	switch (ele)
+	{
+	case BcdBootMgrObjectList_DisplayOrder:
+	{
+		return L"DisplayOrder";
+		break;
+	}
+	case BcdBootMgrObjectList_BootSequence:
+	{
+		return L"BootSequence";
+		break;
+	}
+	case BcdBootMgrObject_DefaultObject:
+	{
+		return L"DefaultObject";
+		break;
+	}
+	case BcdBootMgrInteger_Timeout:
+	{
+		return L"Timeout";
+		break;
+	}
+	case BcdBootMgrBoolean_AttemptResume:
+	{
+		return L"AttemptResume";
+		break;
+	}
+	case BcdBootMgrObject_ResumeObject:
+	{
+		return L"ResumeObject";
+		break;
+	}
+	case BcdBootMgrObjectList_ToolsDisplayOrder:
+	{
+		return L"ToolsDisplayOrder";
+		break;
+	}
+	case BcdBootMgrBoolean_DisplayBootMenu:
+	{
+		return L"DisplayBootMenu";
+		break;
+	}
+	case BcdBootMgrBoolean_NoErrorDisplay:
+	{
+		return L"NoErrorDisplay";
+		break;
+	}
+	case BcdBootMgrDevice_BcdDevice:
+	{
+		return L"BcdDevice";
+		break;
+	}
+	case BcdBootMgrString_BcdFilePath:
+	{
+		return L"BcdFilePath";
+		break;
+	}
+	case BcdBootMgrBoolean_ProcessCustomActionsFirst:
+	{
+		return L"ProcessCustomActionsFirst";
+		break;
+	}
+	case BcdBootMgrIntegerList_CustomActionsList:
+	{
+		return L"CustomActionsList";
+		break;
+	}
+	case BcdBootMgrBoolean_PersistBootSequence:
+	{
+		return L"PersistBootSequence";
+		break;
+	}
+	case BcdDeviceInteger_RamdiskImageOffset:
+	{
+		return L"RamdiskImageOffse";
+		break;
+	}
+	case BcdDeviceInteger_TftpClientPort:
+	{
+		return L"TftpClientPort";
+		break;
+	}
+	case BcdDeviceInteger_SdiDevice:
+	{
+		return L"SdiDevice";
+		break;
+	}
+	case BcdDeviceInteger_SdiPath:
+	{
+		return L"SdiPath";
+		break;
+	}
+	case BcdDeviceInteger_RamdiskImageLength:
+	{
+		return L"RamdiskImageLength";
+		break;
+	}
+	case BcdDeviceBoolean_RamdiskExportAsCd:
+	{
+		return L"RamdiskExportAsCd";
+		break;
+	}
+	case BcdDeviceInteger_RamdiskTftpBlockSize:
+	{
+		return L"RamdiskTftpBlockSize";
+		break;
+	}
+	case BcdDeviceInteger_RamdiskTftpWindowSize:
+	{
+		return L"RamdiskTftpWindowSize";
+		break;
+	}
+	case BcdDeviceBoolean_RamdiskMulticastEnabled:
+	{
+		return L"RamdiskMulticastEnabled";
+		break;
+	}
+	case BcdDeviceBoolean_RamdiskMulticastTftpFallback:
+	{
+		return L"RamdiskMulticastTftpFallback";
+		break;
+	}
+	case BcdDeviceBoolean_RamdiskTftpVarWindow:
+	{
+		return L"RamdiskTftpVarWindow";
+		break;
+	}
+	case BcdLibraryDevice_ApplicationDevice:
+	{
+		return L"ApplicationDevice";
+		break;
+	}
+	case BcdLibraryString_ApplicationPath:
+	{
+		return L"ApplicationPath";
+		break;
+	}
+	case BcdLibraryString_Description:
+	{
+		return L"Description";
+		break;
+	}
+	case BcdLibraryString_PreferredLocale:
+	{
+		return L"PreferredLocale";
+		break;
+	}
+	case BcdLibraryObjectList_InheritedObjects:
+	{
+		return L"InheritedObjects";
+		break;
+	}
+	case BcdLibraryInteger_TruncatePhysicalMemory:
+	{
+		return L"TruncatePhysicalMemory";
+		break;
+	}
+	case BcdLibraryObjectList_RecoverySequence:
+	{
+		return L"RecoverySequence";
+		break;
+	}
+	case BcdLibraryBoolean_AutoRecoveryEnabled:
+	{
+		return L"AutoRecoveryEnabled";
+		break;
+	}
+	case BcdLibraryIntegerList_BadMemoryList:
+	{
+		return L"BadMemoryList";
+		break;
+	}
+	case BcdLibraryBoolean_AllowBadMemoryAccess:
+	{
+		return L"AllowBadMemoryAccess";
+		break;
+	}
+	case BcdLibraryInteger_FirstMegabytePolicy:
+	{
+		return L"FirstMegabytePolicy";
+		break;
+	}
+	case BcdLibraryInteger_RelocatePhysicalMemory:
+	{
+		return L"RelocatePhysicalMemory";
+		break;
+	}
+	case BcdLibraryInteger_AvoidLowPhysicalMemory:
+	{
+		return L"AvoidLowPhysicalMemory";
+		break;
+	}
+	case BcdLibraryBoolean_DebuggerEnabled:
+	{
+		return L"DebuggerEnabled";
+		break;
+	}
+	case BcdLibraryInteger_DebuggerType:
+	{
+		return L"DebuggerType";
+		break;
+	}
+	case BcdLibraryInteger_SerialDebuggerPortAddress:
+	{
+		return L"SerialDebuggerPortAddress";
+		break;
+	}
+	case BcdLibraryInteger_SerialDebuggerPort:
+	{
+		return L"SerialDebuggerPort";
+		break;
+	}
+	case BcdLibraryInteger_SerialDebuggerBaudRate:
+	{
+		return L"SerialDebuggerBaudRate";
+		break;
+	}
+	case BcdLibraryInteger_1394DebuggerChannel:
+	{
+		return L"1394DebuggerChannel";
+		break;
+	}
+	case BcdLibraryString_UsbDebuggerTargetName:
+	{
+		return L"UsbDebuggerTargetName";
+		break;
+	}
+	case BcdLibraryBoolean_DebuggerIgnoreUsermodeExceptions:
+	{
+		return L"DebuggerIgnoreUsermodeExceptions";
+		break;
+	}
+	case BcdLibraryInteger_DebuggerStartPolicy:
+	{
+		return L"DebuggerStartPolicy";
+		break;
+	}
+	case BcdLibraryString_DebuggerBusParameters:
+	{
+		return L"DebuggerBusParameters";
+		break;
+	}
+	case BcdLibraryInteger_DebuggerNetHostIP:
+	{
+		return L"DebuggerNetHostIP";
+		break;
+	}
+	case BcdLibraryInteger_DebuggerNetPort:
+	{
+		return L"DebuggerNetPort";
+		break;
+	}
+	case BcdLibraryBoolean_DebuggerNetDhcp:
+	{
+		return L"DebuggerNetDhcp";
+		break;
+	}
+	case BcdLibraryString_DebuggerNetKey:
+	{
+		return L"DebuggerNetKey";
+		break;
+	}
+	case BcdLibraryBoolean_EmsEnabled:
+	{
+		return L"EmsEnabled";
+		break;
+	}
+	case BcdLibraryInteger_EmsPort:
+	{
+		return L"EmsPort";
+		break;
+	}
+	case BcdLibraryInteger_EmsBaudRate:
+	{
+		return L"EmsBaudRate";
+		break;
+	}
+	case BcdLibraryString_LoadOptionsString:
+	{
+		return L"LoadOptionsString";
+		break;
+	}
+	case BcdLibraryBoolean_DisplayAdvancedOptions:
+	{
+		return L"DisplayAdvancedOptions";
+		break;
+	}
+	case BcdLibraryBoolean_DisplayOptionsEdit:
+	{
+		return L"DisplayOptionsEdit";
+		break;
+	}
+	case BcdLibraryDevice_BsdLogDevice:
+	{
+		return L"BsdLogDevice";
+		break;
+	}
+	case BcdLibraryString_BsdLogPath:
+	{
+		return L"BsdLogPath";
+		break;
+	}
+	case BcdLibraryBoolean_GraphicsModeDisabled:
+	{
+		return L"GraphicsModeDisabled";
+		break;
+	}
+	case BcdLibraryInteger_ConfigAccessPolicy:
+	{
+		return L"ConfigAccessPolicy";
+		break;
+	}
+	case BcdLibraryBoolean_DisableIntegrityChecks:
+	{
+		return L"DisableIntegrityChecks";
+		break;
+	}
+	case BcdLibraryBoolean_AllowPrereleaseSignatures:
+	{
+		return L"AllowPrereleaseSignatures";
+		break;
+	}
+	case BcdLibraryString_FontPath:
+	{
+		return L"FontPath";
+		break;
+	}
+	case BcdLibraryInteger_SiPolicy:
+	{
+		return L"SiPolicy";
+		break;
+	}
+	case BcdLibraryInteger_FveBandId:
+	{
+		return L"FveBandId";
+		break;
+	}
+	case BcdLibraryBoolean_ConsoleExtendedInput:
+	{
+		return L"ConsoleExtendedInput";
+		break;
+	}
+	case BcdLibraryInteger_GraphicsResolution:
+	{
+		return L"GraphicsResolution";
+		break;
+	}
+	case BcdLibraryBoolean_RestartOnFailure:
+	{
+		return L"RestartOnFailure";
+		break;
+	}
+	case BcdLibraryBoolean_GraphicsForceHighestMode:
+	{
+		return L"GraphicsForceHighestMode";
+		break;
+	}
+	case BcdLibraryBoolean_IsolatedExecutionContext:
+	{
+		return L"IsolatedExecutionContext";
+		break;
+	}
+	case BcdLibraryBoolean_BootUxDisable:
+	{
+		return L"BootUxDisable";
+		break;
+	}
+	case BcdLibraryBoolean_BootShutdownDisabled:
+	{
+		return L"BootShutdownDisabled";
+		break;
+	}
+	case BcdLibraryIntegerList_AllowedInMemorySettings:
+	{
+		return L"AllowedInMemorySettings";
+		break;
+	}
+	case BcdLibraryBoolean_ForceFipsCrypto:
+	{
+		return L"ForceFipsCrypto";
+		break;
+	}
+	case BcdMemDiagInteger_PassCount:
+	{
+		return L"PassCount";
+		break;
+	}
+	case BcdMemDiagInteger_FailureCount:
+	{
+		return L"FailureCount";
+		break;
+	}
+	case BcdOSLoaderDevice_OSDevice:
+	{
+		return L"OSDevice";
+		break;
+	}
+	case BcdOSLoaderString_SystemRoot:
+	{
+		return L"SystemRoot";
+		break;
+	}
+/*	case BcdOSLoaderObject_AssociatedResumeObject:
+	{
+		return L"AssociatedResumeObject";
+		break;
+	}
+	*/
+	case BcdOSLoaderBoolean_DetectKernelAndHal:
+	{
+		return L"DetectKernelAndHal";
+		break;
+	}
+	case BcdOSLoaderString_KernelPath:
+	{
+		return L"KernelPath";
+		break;
+	}
+	case BcdOSLoaderString_HalPath:
+	{
+		return L"HalPath";
+		break;
+	}
+	case BcdOSLoaderString_DbgTransportPath:
+	{
+		return L"DbgTransportPath";
+		break;
+	}
+	case BcdOSLoaderInteger_NxPolicy:
+	{
+		return L"NxPolicy";
+		break;
+	}
+	case BcdOSLoaderInteger_PAEPolicy:
+	{
+		return L"PAEPolicy";
+		break;
+	}
+	case BcdOSLoaderBoolean_WinPEMode:
+	{
+		return L"WinPEMode";
+		break;
+	}
+	case BcdOSLoaderBoolean_DisableCrashAutoReboot:
+	{
+		return L"DisableCrashAutoReboot";
+		break;
+	}
+	case BcdOSLoaderBoolean_UseLastGoodSettings:
+	{
+		return L"UseLastGoodSettings";
+		break;
+	}
+	case BcdOSLoaderBoolean_AllowPrereleaseSignatures:
+	{
+		return L"AllowPrereleaseSignatures";
+		break;
+	}
+	case BcdOSLoaderBoolean_NoLowMemory:
+	{
+		return L"NoLowMemory";
+		break;
+	}
+	case BcdOSLoaderInteger_RemoveMemory:
+	{
+		return L"RemoveMemory";
+		break;
+	}
+	case BcdOSLoaderInteger_IncreaseUserVa:
+	{
+		return L"IncreaseUserVa";
+		break;
+	}
+	case BcdOSLoaderBoolean_UseVgaDriver:
+	{
+		return L"UseVgaDriver";
+		break;
+	}
+	case BcdOSLoaderBoolean_DisableBootDisplay:
+	{
+		return L"DisableBootDisplay";
+		break;
+	}
+	case BcdOSLoaderBoolean_DisableVesaBios:
+	{
+		return L"DisableVesaBios";
+		break;
+	}
+	case BcdOSLoaderBoolean_DisableVgaMode:
+	{
+		return L"DisableVgaMode";
+		break;
+	}
+	case BcdOSLoaderInteger_ClusterModeAddressing:
+	{
+		return L"ClusterModeAddressing";
+		break;
+	}
+	case BcdOSLoaderBoolean_UsePhysicalDestination:
+	{
+		return L"UsePhysicalDestination";
+		break;
+	}
+	case BcdOSLoaderInteger_RestrictApicCluster:
+	{
+		return L"RestrictApicCluster";
+		break;
+	}
+	case BcdOSLoaderBoolean_UseLegacyApicMode:
+	{
+		return L"UseLegacyApicMode";
+		break;
+	}
+	case BcdOSLoaderInteger_X2ApicPolicy:
+	{
+		return L"X2ApicPolicy";
+		break;
+	}
+	case BcdOSLoaderBoolean_UseBootProcessorOnly:
+	{
+		return L"UseBootProcessorOnly";
+		break;
+	}
+	case BcdOSLoaderInteger_NumberOfProcessors:
+	{
+		return L"NumberOfProcessors";
+		break;
+	}
+	case BcdOSLoaderBoolean_ForceMaximumProcessors:
+	{
+		return L"ForceMaximumProcessors";
+		break;
+	}
+	case BcdOSLoaderBoolean_ProcessorConfigurationFlags:
+	{
+		return L"ProcessorConfigurationFlags";
+		break;
+	}
+	case BcdOSLoaderBoolean_MaximizeGroupsCreated:
+	{
+		return L"MaximizeGroupsCreated";
+		break;
+	}
+	case BcdOSLoaderBoolean_ForceGroupAwareness:
+	{
+		return L"ForceGroupAwareness";
+		break;
+	}
+	case BcdOSLoaderInteger_GroupSize:
+	{
+		return L"GroupSize";
+		break;
+	}
+	case BcdOSLoaderInteger_UseFirmwarePciSettings:
+	{
+		return L"UseFirmwarePciSettings";
+		break;
+	}
+	case BcdOSLoaderInteger_MsiPolicy:
+	{
+		return L"MsiPolicy";
+		break;
+	}
+	case BcdOSLoaderInteger_SafeBoot:
+	{
+		return L"SafeBoot";
+		break;
+	}
+	case BcdOSLoaderBoolean_SafeBootAlternateShell:
+	{
+		return L"SafeBootAlternateShell";
+		break;
+	}
+	case BcdOSLoaderBoolean_BootLogInitialization:
+	{
+		return L"BootLogInitialization";
+		break;
+	}
+	case BcdOSLoaderBoolean_VerboseObjectLoadMode:
+	{
+		return L"VerboseObjectLoadMode";
+		break;
+	}
+	case BcdOSLoaderBoolean_KernelDebuggerEnabled:
+	{
+		return L"KernelDebuggerEnabled";
+		break;
+	}
+	case BcdOSLoaderBoolean_DebuggerHalBreakpoint:
+	{
+		return L"DebuggerHalBreakpoint";
+		break;
+	}
+	case BcdOSLoaderBoolean_UsePlatformClock:
+	{
+		return L"UsePlatformClock";
+		break;
+	}
+	case BcdOSLoaderBoolean_ForceLegacyPlatform:
+	{
+		return L"ForceLegacyPlatform";
+		break;
+	}
+	case BcdOSLoaderInteger_TscSyncPolicy:
+	{
+		return L"TscSyncPolicy";
+		break;
+	}
+	case BcdOSLoaderBoolean_EmsEnabled:
+	{
+		return L"EmsEnabled";
+		break;
+	}
+	case BcdOSLoaderInteger_DriverLoadFailurePolicy:
+	{
+		return L"DriverLoadFailurePolicy";
+		break;
+	}
+	case BcdOSLoaderInteger_BootMenuPolicy:
+	{
+		return L"BootMenuPolicy";
+		break;
+	}
+	case BcdOSLoaderBoolean_AdvancedOptionsOneTime:
+	{
+		return L"AdvancedOptionsOneTime";
+		break;
+	}
+	case BcdOSLoaderInteger_BootStatusPolicy:
+	{
+		return L"BootStatusPolicy";
+		break;
+	}
+	case BcdOSLoaderBoolean_DisableElamDrivers:
+	{
+		return L"DisableElamDrivers";
+		break;
+	}
+	case BcdOSLoaderInteger_HypervisorLaunchType:
+	{
+		return L"HypervisorLaunchType";
+		break;
+	}
+	case BcdOSLoaderBoolean_HypervisorDebuggerEnabled:
+	{
+		return L"HypervisorDebuggerEnabled";
+		break;
+	}
+	case BcdOSLoaderInteger_HypervisorDebuggerType:
+	{
+		return L"HypervisorDebuggerType";
+		break;
+	}
+	case BcdOSLoaderInteger_HypervisorDebuggerPortNumber:
+	{
+		return L"HypervisorDebuggerPortNumber";
+		break;
+	}
+	case BcdOSLoaderInteger_HypervisorDebuggerBaudrate:
+	{
+		return L"HypervisorDebuggerBaudrate";
+		break;
+	}
+	case BcdOSLoaderInteger_HypervisorDebugger1394Channel:
+	{
+		return L"HypervisorDebugger1394Channel";
+		break;
+	}
+	case BcdOSLoaderInteger_BootUxPolicy:
+	{
+		return L"BootUxPolicy";
+		break;
+	}
+	case BcdOSLoaderString_HypervisorDebuggerBusParams:
+	{
+		return L"HypervisorDebuggerBusParams";
+		break;
+	}
+	case BcdOSLoaderInteger_HypervisorNumProc:
+	{
+		return L"HypervisorNumProc";
+		break;
+	}
+	case BcdOSLoaderInteger_HypervisorRootProcPerNode:
+	{
+		return L"HypervisorRootProcPerNode";
+		break;
+	}
+	case BcdOSLoaderBoolean_HypervisorUseLargeVTlb:
+	{
+		return L"HypervisorUseLargeVTlb";
+		break;
+	}
+	case BcdOSLoaderInteger_HypervisorDebuggerNetHostIp:
+	{
+		return L"HypervisorDebuggerNetHostIp";
+		break;
+	}
+	case BcdOSLoaderInteger_HypervisorDebuggerNetHostPort:
+	{
+		return L"HypervisorDebuggerNetHostPort";
+		break;
+	}
+	case BcdOSLoaderInteger_TpmBootEntropyPolicy:
+	{
+		return L"TpmBootEntropyPolicy";
+		break;
+	}
+	case BcdOSLoaderString_HypervisorDebuggerNetKey:
+	{
+		return L"HypervisorDebuggerNetKey";
+		break;
+	}
+	case BcdOSLoaderBoolean_HypervisorDebuggerNetDhcp:
+	{
+		return L"HypervisorDebuggerNetDhcp";
+		break;
+	}
+	case BcdOSLoaderInteger_HypervisorIommuPolicy:
+	{
+		return L"HypervisorIommuPolicy";
+		break;
+	}
+	case BcdOSLoaderInteger_XSaveDisable:
+	{
+		return L"XSaveDisable";
+		break;
+	}
+	/*case Reserved1:
+	{
+		return L"Reserved1";
+		break;
+	}
+	case Reserved2:
+	{
+		return L"Reserved2";
+		break;
+	}
+	*/
+	case BcdResumeBoolean_UseCustomSettings:
+	{
+		return L"UseCustomSettings";
+		break;
+	}
+	case BcdResumeDevice_AssociatedOsDevice:
+	{
+		return L"AssociatedOsDevice";
+		break;
+	}
+	case BcdResumeBoolean_DebugOptionEnabled:
+	{
+		return L"DebugOptionEnabled";
+		break;
+	}
+	case BcdResumeInteger_BootMenuPolicy:
+	{
+		return L"BootMenuPolicy";
+		break;
+	}
+	default:
+		
+		break;
+	}
+	return L"";
 }
