@@ -247,6 +247,10 @@ enum EleValueType
 class BcdElement
 {
 public:
+	void release() 
+	{
+		delete this;
+	}
 	virtual std::wstring getValueString()
 	{
 		return L"";
@@ -280,7 +284,7 @@ public:
 	{
 		if (Device != NULL)
 		{
-			delete Device;
+			Device->release();
 		}
 		Device = NULL;
 	}
@@ -356,6 +360,10 @@ class BcdObjectListElement : public BcdElement
 public:
 	//std::wstring Ids[];
 	//std::wstring *Ids;
+	std::vector<std::wstring> getObjectListElement()
+	{
+		return vecId;
+	}
 	std::vector<std::wstring> vecId;
 	virtual ~BcdObjectListElement()
 	{

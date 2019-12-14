@@ -8,9 +8,10 @@ CWimBase::CWimBase()
 
 HRESULT CWimBase::init()
 {
+
 	HRESULT hr;
 	hr = CoInitializeEx(0, COINIT_MULTITHREADED);
-	if (FAILED(hr))
+	if (FAILED(hr) && 0x80010106 != hr)
 	{	
 		return hr;
 	}

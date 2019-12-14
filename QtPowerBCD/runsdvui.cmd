@@ -1,0 +1,2 @@
+cd /d "D:\users\wsmh0\source\repos\BcdPower\QtPowerBCD" &msbuild "QtPowerBCD.vcxproj" /t:sdvViewer /p:configuration="Debug" /p:platform="x64" /p:SolutionDir="D:\users\wsmh0\source\repos\BcdPower" 
+exit %errorlevel% 

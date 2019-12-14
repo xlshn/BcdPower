@@ -5,6 +5,7 @@
 class BcdStore
 {
 public:
+	std::vector<BcdObject*> getBcdObject();
 	void Release();
 	BcdStore(IWbemClassObject* pwboBcdStore, IWbemClassObject *pwboBcdStoreClass);
 	bool CopyObject(
@@ -73,6 +74,8 @@ private:
 	//std::string FilePath;
 	IWbemClassObject* m_wboBcdStoreObject;
 	IWbemClassObject* m_wboBcdStoreClass;
+
+	std::vector<BcdObject*> m_vecBcdObject;
 };
 
 BcdStore* CreateBcdStoreObj(IWbemClassObject* pwboBcdStoreObject, IWbemClassObject* pwboBcdStoreClass);

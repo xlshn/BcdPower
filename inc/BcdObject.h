@@ -77,7 +77,7 @@ class BcdObject
 {
 public:
 	ObjectCode GetObjectCode();
-	bool GetBcdObjectId(std::wstring &wstrBcdId);
+	std::wstring GetBcdObjectId();
 	void Release();
 	BcdObject(IWbemClassObject* pwco);
 	bool DeleteElement(UINT32 Type);
@@ -163,6 +163,7 @@ public:
 	IWbemClassObject* m_wbemBcdObject;
 	IWbemClassObject* m_wbemBcdClass;
 private:	
+	bool GetBcdObjectId(std::wstring& wstrBcdId);
 	ImageCode GetImageCode();	
 	ApplicationCode GetApplicationCode();	
 	bool GetBcdType(UINT &type);

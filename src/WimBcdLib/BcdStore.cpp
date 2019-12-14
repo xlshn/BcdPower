@@ -2,6 +2,10 @@
 #include "BcdStore.h"
 #include "BcdCmn.h"
 
+std::vector<BcdObject*> BcdStore::getBcdObject()
+{
+	return m_vecBcdObject;
+}
 void BcdStore::Release()
 {
 	if (m_wboBcdStoreObject != NULL)
@@ -309,6 +313,7 @@ bool BcdStore::DeleteSystemStore()
 
 bool BcdStore::EnumerateObjects(uint32 Type, std::vector<BcdObject*> &vecBcdObject)
 {
+	m_vecBcdObject.clear();
 	VARIANT varPath;
 	HRESULT  hres = BcdCmn::getBcdObjectPath(m_wboBcdStoreObject, varPath);
 	if (FAILED(hres))
@@ -364,13 +369,14 @@ bool BcdStore::EnumerateObjects(uint32 Type, std::vector<BcdObject*> &vecBcdObje
 			LONG iTmp = (LONG)i;
 			SafeArrayGetElement(varObjects.parray, &iTmp, &pWcoBcdObjec);
 			BcdObject* bo = CreateBcdObjectObj(pWcoBcdObjec);
-			vecBcdObject.push_back(bo);
+			m_vecBcdObject.push_back(bo);
 		}
 
 	} while (0);
 	pwboOutput->Release();
 	if (!FAILED(hres) && bRetValue)
 	{
+		vecBcdObject = m_vecBcdObject;
 		return true;
 	}
 	return false;

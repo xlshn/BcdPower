@@ -32,6 +32,8 @@ protected:
 	afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
 	afx_msg void OnPaint();
 	afx_msg HCURSOR OnQueryDragIcon();
+	afx_msg void OnGetMinMaxInfo(MINMAXINFO*);
+	afx_msg	void OnSize(UINT, int, int);
 	DECLARE_MESSAGE_MAP()
 public:
 	CTreeCtrl m_bcdStoreTree;
@@ -44,4 +46,6 @@ public:
 	CListCtrl m_listBcdObjectDetail;	
 	afx_msg void OnTvnSelchangedTreeBcdSotre(NMHDR *pNMHDR, LRESULT *pResult);
 
+	CButton m_btnOk;
+	CButton m_btnCancel;
 };

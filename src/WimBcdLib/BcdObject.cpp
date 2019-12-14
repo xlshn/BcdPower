@@ -14,6 +14,10 @@ ObjectCode BcdObject::GetObjectCode()
 {
 	return (ObjectCode)((m_Type & 0xf0000000) >> 28);
 }
+std::wstring BcdObject::GetBcdObjectId()
+{
+	return m_Id;
+}
 ApplicationCode BcdObject::GetApplicationCode()
 {
 	return (ApplicationCode)(m_Type & 0x000fffff);
@@ -1104,13 +1108,13 @@ IWbemClassObject * BcdObject::getElementClassObj(ULONG Type)
 	HRESULT hres = getBcdObjectPath(varBcdObjectPath);
 	if (FAILED(hres))
 	{
-		return false;
+		return NULL;
 	}
 	IWbemClassObject* pWboInParam = NULL;
 	hres = m_wbemBcdClass->GetMethod(L"GetElementWithFlags", 0, &pWboInParam, NULL);
 	if (FAILED(hres))
 	{
-		return  false;
+		return  NULL;
 	}
 
 	VARIANT varType;
@@ -1256,6 +1260,7 @@ BcdDeviceElement* BcdObject::Build_BcdDevice_ElementStruct(IWbemClassObject* pwb
 	deviceEle->ObjectId = ele.ObjectId;
 	deviceEle->StoreFilePath = ele.StoreFilePath;
 	deviceEle->Type = ele.Type;
+	deviceEle->valueType = EleValueType_Device;
 
 	memset(&varTmp, 0, sizeof(VARIANT));
 	HRESULT hres = pwboEle->Get(L"Device", 0, &varTmp, NULL, NULL);	
@@ -1544,7 +1549,8 @@ BcdDeviceLocateElementChildData* BcdObject::BuildBcdDevice_LocateElementChildDat
 	hres = pwbo->Get(L"Parent", 0, &varTmp, NULL, NULL);
 	if (varTmp.byref != NULL)
 	{
-		locateElementChildData->Parent = BuildBcdDevice(pwbo);
+		IWbemClassObject* pParentWbo = (IWbemClassObject*)varTmp.byref;
+		locateElementChildData->Parent = BuildBcdDevice(pParentWbo);
 	}
 	else
 	{

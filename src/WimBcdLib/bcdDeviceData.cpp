@@ -1,5 +1,9 @@
 #include "bcdDevicedata.h"
 
+void BcdDeviceData::release()
+{
+	delete this;
+}
 std::wstring BcdDeviceData::getDeviceDisplayString()
 {
 	return getBootDeviceString(DeviceType) + L", " + AdditionalOptions;
@@ -70,6 +74,11 @@ std::wstring BcdDeviceFileData::getDeviceDisplayString()
 std::wstring BcdDevicePartitionData::getDeviceDisplayString()
 {
 	return getBootDeviceString(DeviceType) + L", " + Path;
+}
+
+std::wstring BcdDevicePartitionData::GetPartDevicePath()
+{
+	return Path;
 }
 
 std::wstring BcdDeviceQualifiedPartitionData::getDeviceDisplayString()

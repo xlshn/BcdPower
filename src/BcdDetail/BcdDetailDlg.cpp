@@ -63,6 +63,8 @@ void CBcdDetailDlg::DoDataExchange(CDataExchange* pDX)
 	CDialogEx::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_TREE_BCD_SOTRE, m_bcdStoreTree);
 	DDX_Control(pDX, IDC_LIST_BCD_OBJECT_DETAIL, m_listBcdObjectDetail);
+	DDX_Control(pDX, IDOK, m_btnOk);
+	DDX_Control(pDX, IDCANCEL, m_btnCancel);
 }
 
 BEGIN_MESSAGE_MAP(CBcdDetailDlg, CDialogEx)
@@ -72,6 +74,8 @@ BEGIN_MESSAGE_MAP(CBcdDetailDlg, CDialogEx)
 	ON_COMMAND(MENU_BCDSTORE_ITEM_OPENBCDSTROE, OnOpenOtherBcdStore)	
 	ON_COMMAND(MENU_BCDSTORE_ITEM_OPENSYSTEMBCDSTROE, OnOpenCurrentSysBcdStore)
 	ON_NOTIFY(TVN_SELCHANGED, IDC_TREE_BCD_SOTRE, &CBcdDetailDlg::OnTvnSelchangedTreeBcdSotre)
+	ON_WM_GETMINMAXINFO()
+	ON_WM_SIZE()
 END_MESSAGE_MAP()
 
 
@@ -139,8 +143,8 @@ BOOL CBcdDetailDlg::OnInitDialog()
 	columnEleValue.mask = LVCF_TEXT | LVCF_FMT | LVCF_WIDTH;
 	columnEleValue.pszText = L"Element Value";
 	columnEleValue.fmt = LVCFMT_LEFT;
-	columnEleValue.cx = 250;
-	m_listBcdObjectDetail.InsertColumn(2, &columnEleValue);
+	columnEleValue.cx = 500;
+	m_listBcdObjectDetail.InsertColumn(2, &columnEleValue);	
 	CHeaderCtrl* listHeader = m_listBcdObjectDetail.GetHeaderCtrl();	
 	//hStyle = (~HDS_BUTTONS) | hStyle;
 	listHeader->ModifyStyle(HDS_BUTTONS, 0);
@@ -363,9 +367,65 @@ HCURSOR CBcdDetailDlg::OnQueryDragIcon()
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
-void CBcdDetailDlg::OnTvnSelchangedTreeBcdSotre(NMHDR *pNMHDR, LRESULT *pResult)
+afx_msg void CBcdDetailDlg::OnGetMinMaxInfo(MINMAXINFO* mmInfo)
 {
+	mmInfo->ptMinTrackSize.x = 935 * 4 / 5;
+	mmInfo->ptMinTrackSize.y = 600 * 4 / 5;
+}
+
+void CBcdDetailDlg::OnSize(UINT nType,	int cx,	int cy)
+{
+	int treePtx = 10;
+	int treePty = 10;
+	int treeCx = cx / 3;
+	if (treeCx > 250)
+	{
+		treeCx = 250;
+	}
+	int treeCy = cy - 60;
+
+	if(m_bcdStoreTree.m_hWnd)
+	{ 
+		m_bcdStoreTree.MoveWindow(treePtx, treePty, treeCx, treeCy);
+	}
+
+	int listPtx = 10 + treeCx + 5;
+	int listPty = 10;
+	int listCx = cx - listPtx - 10;
+	int listCy = treeCy;
+
+	if (m_listBcdObjectDetail.m_hWnd)
+	{
+		m_listBcdObjectDetail.MoveWindow(listPtx, listPty, listCx, listCy);
+		m_listBcdObjectDetail.SetColumnWidth(2, LVSCW_AUTOSIZE_USEHEADER);
+	}
+
+	int btnCx = 100;
+	int btnCy = 30;
+	int okPtx = cx - 10 - btnCx;
+	int okPty = cy - 10 - btnCy;
+	int okCx = btnCx;
+	int okCy = btnCy;
+	if (m_btnOk.m_hWnd)
+	{
+		m_btnOk.MoveWindow(okPtx, okPty, okCx, okCy);
+	}
+
+	int cancelPtx = okPtx - 20 - btnCx;
+	int cancelPty = okPty;
+	int cancelCx = btnCx;
+	int cancelCy = btnCy;
+	if (m_btnCancel.m_hWnd)
+	{
+		m_btnCancel.MoveWindow(cancelPtx, cancelPty, cancelCx, cancelCy);
+	}
+}
+
+void CBcdDetailDlg::OnTvnSelchangedTreeBcdSotre(NMHDR *pNMHDR, LRESULT *pResult)
+{	
 	m_listBcdObjectDetail.DeleteAllItems();
+	//todo:ÊÍ·ÅÄÚ´æ
+
 	LPNMTREEVIEW pNMTreeView = reinterpret_cast<LPNMTREEVIEW>(pNMHDR);
 	*pResult = 0;
 	if ((pNMTreeView->itemNew.mask & TVIF_PARAM) == 0)
@@ -387,6 +447,8 @@ void CBcdDetailDlg::OnTvnSelchangedTreeBcdSotre(NMHDR *pNMHDR, LRESULT *pResult)
 		m_listBcdObjectDetail.InsertItem(i, pwszEleType);
 		m_listBcdObjectDetail.SetItemText(i, 1, BcdObject::getEleDisplay(pEle->Type).c_str());
 		m_listBcdObjectDetail.SetItemText(i, 2, pEle->getValueString().c_str());
+		pEle->release();
 	}
 	*pResult = 0;
+	m_listBcdObjectDetail.SetColumnWidth(2, LVSCW_AUTOSIZE_USEHEADER);
 }

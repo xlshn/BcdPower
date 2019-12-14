@@ -31,6 +31,7 @@ enum BCD_DEVICE_DATA_TYPE
 class BcdDeviceData
 {
 public:
+	void release();
 	BCD_DEVICE_TYPE DeviceType;	
 	std::wstring AdditionalOptions;
 	BCD_DEVICE_DATA_TYPE DataType;
@@ -85,6 +86,7 @@ public:
 class BcdDevicePartitionData : public BcdDeviceData
 {
 public:
+	std::wstring GetPartDevicePath();
 	std::wstring Path;
 	~BcdDevicePartitionData()
 	{
