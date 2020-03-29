@@ -93,10 +93,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="cmn.cpp" />
     <ClCompile Include="DeviceInfoDlg.cpp" />
+    <ClCompile Include="Disk.cpp" />
     <ClCompile Include="DiskIo.cpp" />
+    <ClCompile Include="DiskMgr.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MainWdg.cpp" />
+    <ClCompile Include="part.cpp" />
+    <ClCompile Include="PartMgr.cpp" />
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="MainWdg.h" />
@@ -105,7 +110,12 @@
     <QtMoc Include="DeviceInfoDlg.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="cmn.h" />
+    <ClInclude Include="Disk.h" />
     <ClInclude Include="DiskIo.h" />
+    <ClInclude Include="DiskMgr.h" />
+    <ClInclude Include="Part.h" />
+    <ClInclude Include="PartMgr.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Condition="Exists('$(QtMsBuild)\qt.targets')">

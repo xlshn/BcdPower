@@ -33,6 +33,21 @@
     <ClCompile Include="DiskIo.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="cmn.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DiskMgr.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Disk.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="part.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="PartMgr.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <QtMoc Include="MainWdg.h">
@@ -44,6 +59,21 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DiskIo.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="cmn.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DiskMgr.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Disk.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Part.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PartMgr.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
